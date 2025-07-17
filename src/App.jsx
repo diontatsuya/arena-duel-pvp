@@ -1,5 +1,5 @@
 import React from "react";
-import ConnectWallet from "./components/connectwallet";
+import ConnectWallet from "./components/ConnectWallet";
 import GameArena from "./components/gamearena";
 
 const App = () => {
