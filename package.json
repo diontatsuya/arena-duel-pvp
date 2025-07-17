@@ -1,4 +1,3 @@
-
 {
   "name": "arena-duel-frontend",
   "version": "1.0.0",
@@ -9,12 +8,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "ethers": "^6.0.0",
+    "@privy-io/react-auth": "^2.0.8",         // login wallet
+    "ethers": "^6.7.0",                       // gunakan versi stabil terbaru
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "vite": "^4.0.0",
-    "@vitejs/plugin-react": "^4.0.0"
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^4.5.0"
   }
 }
