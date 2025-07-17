@@ -16,9 +16,9 @@ const ConnectWallet = ({ setSigner, setWalletAddress }) => {
         setSigner(signer);
         setWalletAddress(address);
         setIsConnected(true);
-        navigate("/arena"); // ➜ Redirect setelah connect
+        navigate("/arena"); // pindah ke halaman arena setelah connect
       } catch (error) {
-        console.error("Failed to connect wallet:", error);
+        console.error("Wallet connection error:", error);
       }
     } else {
       alert("MetaMask not detected!");
