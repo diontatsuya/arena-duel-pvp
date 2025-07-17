@@ -1,6 +1,6 @@
 import React from "react";
 import ConnectWallet from "./components/ConnectWallet";
-import GameArena from "./components/gamearena";
+import GameArena from "./components/GameArena";
 
 const App = () => {
   return (
