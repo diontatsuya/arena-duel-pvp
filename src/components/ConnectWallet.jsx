@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 
@@ -7,14 +6,20 @@ const ConnectWallet = ({ setSigner, setWalletAddress }) => {
 
   const connectWallet = async () => {
     if (window.ethereum) {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      setSigner(signer);
-      setWalletAddress(address);
-      setIsConnected(true);
+      try {
+        await window.ethereum.request({ method: "eth_requestAccounts" }); // minta akses wallet
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        setSigner(signer);
+        setWalletAddress(address);
+        setIsConnected(true);
+      } catch (err) {
+        console.error("Error connecting wallet:", err);
+        alert("Gagal menghubungkan wallet.");
+      }
     } else {
-      alert("MetaMask not detected!");
+      alert("MetaMask tidak terdeteksi!");
     }
   };
 
