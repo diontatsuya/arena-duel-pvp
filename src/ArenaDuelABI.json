@@ -1,0 +1,10 @@
+
+[
+  {
+    "inputs": [],
+    "name": "joinArena",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
