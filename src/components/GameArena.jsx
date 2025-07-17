@@ -1,42 +1,11 @@
-import React from "react";
-import ArenaPVP from "./ArenaPVP";
-import { BrowserProvider } from "ethers";
-
-const GameArena = ({ provider, address, setAddress, contract, setContract }) => {
-  const connectWallet = async () => {
-    if (window.ethereum) {
-      try {
-        const prov = new BrowserProvider(window.ethereum);
-        const signer = await prov.getSigner();
-        const addr = await signer.getAddress();
-        setAddress(addr);
-      } catch (err) {
-        console.error("Connection error:", err);
-      }
-    } else {
-      alert("Please install MetaMask!");
-    }
-  };
-
+const GameArena = () => {
   return (
-    <div className="text-center space-y-6">
-      {address ? (
-        <>
-          <p className="text-xl">Connected as: {address}</p>
-          <ArenaPVP
-            address={address}
-            contract={contract}
-            setContract={setContract}
-          />
-        </>
-      ) : (
-        <button
-          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full"
-          onClick={connectWallet}
-        >
-          Connect Wallet
-        </button>
-      )}
+    <div className="flex flex-col items-center justify-center h-screen">
+      <h1 className="text-4xl font-bold mb-4">Choose Your Arena</h1>
+      <div className="flex space-x-4">
+        <a href="/arena-pvp" className="bg-red-500 text-white px-6 py-3 rounded hover:bg-red-600">PVP Mode</a>
+        <a href="/arena-pve" className="bg-green-500 text-white px-6 py-3 rounded hover:bg-green-600">PVE Mode</a>
+      </div>
     </div>
   );
 };
