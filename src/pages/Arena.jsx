@@ -1,184 +1,146 @@
 import React, { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
 import contractABI from '../utils/contractABI.json';
-import HealthBar from '../components/HealthBar';
 
-const CONTRACT_ADDRESS = '0x95dd66c55214a3d603fe1657e22f710692fcbd9b'; // Sesuaikan jika berubah
-const SOMNIA_CHAIN_ID = 50312; // Chain ID Somnia Testnet
+const CONTRACT_ADDRESS = '0x95dd66c55214a3d603fe1657e22f710692fcbd9b'; // Ganti jika berubah
 
 const Arena = () => {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
-  const [contract, setContract] = useState(null);
-  const [account, setAccount] = useState('');
   const [status, setStatus] = useState('');
   const [player, setPlayer] = useState(null);
   const [opponent, setOpponent] = useState(null);
-  const [actionInProgress, setActionInProgress] = useState(false);
-
-  const connectWallet = async () => {
-    if (window.ethereum) {
-      try {
-        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-        if (parseInt(chainId, 16) !== SOMNIA_CHAIN_ID) {
-          try {
-            await window.ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0xc4f8' }], // Hexadecimal 50312
-            });
-          } catch (switchError) {
-            setStatus('Gagal mengganti jaringan ke Somnia Testnet.');
-            return;
-          }
-        }
-
-        const accs = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const prov = new ethers.BrowserProvider(window.ethereum);
-        const sign = await prov.getSigner();
-        const cont = new ethers.Contract(CONTRACT_ADDRESS, contractABI, sign);
-
-        setProvider(prov);
-        setSigner(sign);
-        setContract(cont);
-        setAccount(accs[0]);
-        setStatus('Wallet terhubung.');
-      } catch (err) {
-        console.error(err);
-        setStatus('Gagal menghubungkan wallet.');
-      }
-    } else {
-      setStatus('Metamask tidak ditemukan.');
-    }
-  };
-
-  const joinArena = async () => {
-    if (!contract) return;
-    try {
-      const tx = await contract.joinArena();
-      setStatus('Menunggu konfirmasi transaksi...');
-      setActionInProgress(true);
-      await tx.wait();
-      setStatus('Berhasil masuk ke arena.');
-      fetchPlayerData();
-    } catch (err) {
-      console.error(err);
-      setStatus('Gagal masuk ke arena.');
-    } finally {
-      setActionInProgress(false);
-    }
-  };
-
-  const fetchPlayerData = async () => {
-    if (!contract || !account) return;
-    try {
-      const data = await contract.players(account);
-      setPlayer(data);
-
-      if (data.opponent !== ethers.ZeroAddress) {
-        const oppData = await contract.players(data.opponent);
-        setOpponent(oppData);
-      } else {
-        setOpponent(null);
-      }
-    } catch (err) {
-      console.error(err);
-      setStatus('Gagal mengambil data pemain.');
-    }
-  };
-
-  const performAction = async (actionType) => {
-    if (!contract) return;
-    try {
-      let tx;
-      if (actionType === 'attack') tx = await contract.attack();
-      else if (actionType === 'defend') tx = await contract.defend();
-      else if (actionType === 'heal') tx = await contract.heal();
-      else return;
-
-      setStatus('Aksi dikirim, menunggu konfirmasi...');
-      setActionInProgress(true);
-      await tx.wait();
-      setStatus(`Aksi ${actionType} berhasil.`);
-      fetchPlayerData();
-    } catch (err) {
-      console.error(err);
-      setStatus(`Gagal melakukan aksi ${actionType}.`);
-    } finally {
-      setActionInProgress(false);
-    }
-  };
+  const [isTurn, setIsTurn] = useState(false);
+  const [lastAction, setLastAction] = useState('');
+  const [selectedAction, setSelectedAction] = useState(null);
+  const [contract, setContract] = useState(null);
 
   useEffect(() => {
-    connectWallet();
+    const init = async () => {
+      if (!window.ethereum) {
+        setStatus('Silakan instal MetaMask.');
+        return;
+      }
+
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send('eth_requestAccounts', []);
+      const signer = provider.getSigner();
+      const network = await provider.getNetwork();
+
+      // Cek jika bukan jaringan Somnia, minta ganti jaringan
+      if (network.chainId !== 50312) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xC4F8' }], // 50312 = 0xC4F8
+          });
+          return; // Tunggu user switch, lalu refresh halaman
+        } catch (error) {
+          setStatus('Gagal switch ke jaringan Somnia. Silakan ubah jaringan secara manual.');
+          return;
+        }
+      }
+
+      const arenaContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+      setContract(arenaContract);
+
+      const userAddress = await signer.getAddress();
+      const playerData = await arenaContract.players(userAddress);
+
+      if (playerData.opponent !== ethers.constants.AddressZero) {
+        const opponentData = await arenaContract.players(playerData.opponent);
+        setOpponent(opponentData);
+      }
+
+      setPlayer(playerData);
+      setIsTurn(playerData.isTurn);
+      setLastAction(ActionToText(playerData.lastAction));
+
+      arenaContract.on('ActionTaken', (playerAddr, opponentAddr, action) => {
+        if (playerAddr === userAddress || opponentAddr === userAddress) {
+          setStatus(`Aksi: ${ActionToText(action)}`);
+        }
+      });
+
+      arenaContract.on('GameOver', (winner, loser) => {
+        if (winner === userAddress) {
+          setStatus('Kamu menang!');
+        } else if (loser === userAddress) {
+          setStatus('Kamu kalah!');
+        } else {
+          setStatus('Permainan selesai.');
+        }
+      });
+    };
+
+    init();
   }, []);
 
-  useEffect(() => {
-    if (contract && account) {
-      fetchPlayerData();
+  const ActionToText = (action) => {
+    switch (action) {
+      case 1:
+        return 'Attack';
+      case 2:
+        return 'Defend';
+      case 3:
+        return 'Heal';
+      default:
+        return 'None';
     }
-  }, [contract, account]);
+  };
+
+  const handleJoin = async () => {
+    if (!contract) return;
+    setStatus('Menunggu lawan...');
+    const tx = await contract.joinGame();
+    await tx.wait();
+    setStatus('Berhasil bergabung.');
+  };
+
+  const handleAction = async () => {
+    if (!contract || selectedAction === null) return;
+    setStatus('Mengirim aksi...');
+    const tx = await contract.takeAction(selectedAction);
+    await tx.wait();
+    setStatus('Aksi berhasil dikirim.');
+  };
 
   return (
-    <div className="p-4 max-w-xl mx-auto text-center bg-white rounded-xl shadow-md">
-      <h1 className="text-3xl font-bold mb-4">⚔️ Arena Duel</h1>
-      <p className="mb-2">{status}</p>
-      {!player || player.hp === 0 ? (
+    <div className="p-6 max-w-2xl mx-auto text-white">
+      <h1 className="text-3xl font-bold mb-4">Arena Duel (Turn-Based)</h1>
+
+      <div className="bg-gray-800 p-4 rounded-lg mb-4">
+        <p>Status: {status}</p>
+        <p>HP Kamu: {player?.hp ?? '-'}</p>
+        <p>HP Lawan: {opponent?.hp ?? '-'}</p>
+        <p>Gantianmu: {isTurn ? 'Ya' : 'Tidak'}</p>
+        <p>Aksi Terakhir: {lastAction}</p>
+      </div>
+
+      <div className="flex gap-2 mb-4">
         <button
-          onClick={joinArena}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          disabled={actionInProgress}
+          onClick={handleJoin}
+          className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded"
         >
-          Join Arena
+          Join Game
         </button>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <h2 className="font-semibold mb-1">👤 Kamu</h2>
-              <HealthBar hp={player.hp} />
-              <p className="text-sm text-gray-600">{player.isTurn ? '🎯 Giliranmu' : '⏳ Menunggu'}</p>
-              <p className="text-sm text-gray-500 italic">Last: {player.lastAction}</p>
-            </div>
-            {opponent ? (
-              <div>
-                <h2 className="font-semibold mb-1">👾 Lawan</h2>
-                <HealthBar hp={opponent.hp} />
-                <p className="text-sm text-gray-600">{!player.isTurn ? '🎯 Giliran lawan' : '⏳ Menunggu'}</p>
-                <p className="text-sm text-gray-500 italic">Last: {opponent.lastAction}</p>
-              </div>
-            ) : (
-              <div>
-                <h2 className="font-semibold">Menunggu lawan...</h2>
-              </div>
-            )}
-          </div>
-          {player.isTurn && (
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={() => performAction('attack')}
-                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                disabled={actionInProgress}
-              >
-                Attack
-              </button>
-              <button
-                onClick={() => performAction('defend')}
-                className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
-                disabled={actionInProgress}
-              >
-                Defend
-              </button>
-              <button
-                onClick={() => performAction('heal')}
-                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                disabled={actionInProgress}
-              >
-                Heal
-              </button>
-            </div>
-          )}
-        </>
-      )}
+
+        <select
+          value={selectedAction ?? ''}
+          onChange={(e) => setSelectedAction(Number(e.target.value))}
+          className="text-black px-2 py-1 rounded"
+        >
+          <option value="">Pilih Aksi</option>
+          <option value="1">Attack</option>
+          <option value="2">Defend</option>
+          <option value="3">Heal</option>
+        </select>
+
+        <button
+          onClick={handleAction}
+          className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded"
+        >
+          Kirim Aksi
+        </button>
+      </div>
     </div>
   );
 };
