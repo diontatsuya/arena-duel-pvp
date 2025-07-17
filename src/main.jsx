@@ -1,41 +1,46 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./App.jsx";
-import "./index.css";
-import { PrivyProvider } from "@privy-io/react-auth";
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
 
-// Konfigurasi custom chain untuk Somnia Testnet
+import { WagmiProvider, createConfig, configureChains } from 'wagmi';
+import { publicProvider } from 'wagmi/providers/public';
+import { ConnectKitProvider, getDefaultConfig } from 'connectkit';
+
+// ✅ Definisi jaringan Somnia Testnet
 const somniaChain = {
-  id: 0xc474, // ← Ganti sesuai chainId Somnia Testnet kamu
-  name: "Somnia Testnet",
+  id: 50312, // ✅ chainId decimal (0xc474 in hex)
+  name: 'Somnia Testnet',
+  nativeCurrency: {
+    name: 'Somnia Test Token',
+    symbol: 'STT',
+    decimals: 18,
+  },
   rpcUrls: {
     default: {
-      http: ["https://rpc.testnet.somnia.network"], // ← Ganti jika pakai RPC lain
+      http: ['https://rpc.testnet.somnia.network'],
     },
-  },
-  nativeCurrency: {
-    name: "Somnia Test Token",
-    symbol: "STT",
-    decimals: 18,
   },
 };
 
-ReactDOM.createRoot(document.getElementById("root")).render(
+const { chains, publicClient } = configureChains([somniaChain], [publicProvider()]);
+
+// ✅ Konfigurasi WAGMI + ConnectKit
+const config = createConfig(
+  getDefaultConfig({
+    appName: 'Arena Duel',
+    chains,
+    publicClient,
+  })
+);
+
+// ✅ Render ke DOM
+ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <PrivyProvider
-      appId="cmcn6y46j00mnl40m3u5bee9v"
-      config={{
-        loginMethods: ["wallet"],
-        embeddedWallets: {
-          createOnLogin: "users-without-wallets",
-        },
-        supportedChains: [somniaChain], // ← penting agar OKX Wallet tahu konek ke mana
-        appearance: {
-          theme: "dark",
-        },
-      }}
-    >
-      <App />
-    </PrivyProvider>
+    <WagmiProvider config={config}>
+      <ConnectKitProvider>
+        <App />
+      </ConnectKitProvider>
+    </WagmiProvider>
   </React.StrictMode>
 );
