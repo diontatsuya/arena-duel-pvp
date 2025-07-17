@@ -1,12 +1,11 @@
 import React from 'react';
 
-export default function HealthBar({ hp, maxHp }) {
-  const percentage = (hp / maxHp) * 100;
-
+export default function HealthBar({ currentHP, maxHP }) {
+  const percentage = (currentHP / maxHP) * 100;
   return (
-    <div className="w-full bg-gray-300 rounded h-4 mb-2">
+    <div className="w-full bg-gray-300 rounded h-4 overflow-hidden">
       <div
-        className="bg-red-500 h-4 rounded"
+        className="bg-red-500 h-full transition-all duration-300"
         style={{ width: `${percentage}%` }}
       ></div>
     </div>
