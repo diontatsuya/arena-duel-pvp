@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import contractABI from '../abi/ArenaDuelABI.json';
 
 const CONTRACT_ADDRESS = '0x95dd66c55214a3d603fe1657e22f710692fcbd9b';
-const TARGET_CHAIN_ID = '0xc4f8'; // Polygon Mumbai (misalnya, ubah jika beda)
+const TARGET_CHAIN_ID = '0xc478'; // Polygon Mumbai (misalnya, ubah jika beda)
 
 export default function Arena() {
   const [provider, setProvider] = useState(null);
