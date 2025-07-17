@@ -6,7 +6,7 @@ import { PrivyProvider } from "@privy-io/react-auth";
 
 // Konfigurasi custom chain untuk Somnia Testnet
 const somniaChain = {
-  id: 50312, // ← Ganti sesuai chainId Somnia Testnet kamu
+  id: 503129905, // ← Ganti sesuai chainId Somnia Testnet kamu
   name: "Somnia Testnet",
   rpcUrls: {
     default: {
