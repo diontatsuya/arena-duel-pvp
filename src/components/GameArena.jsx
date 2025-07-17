@@ -1,0 +1,1 @@
+// GameArena component content

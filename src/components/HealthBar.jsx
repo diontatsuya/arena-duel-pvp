@@ -1,0 +1,1 @@
+// HealthBar component content
