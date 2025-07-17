@@ -1,25 +1,27 @@
+// src/components/ConnectWallet.jsx
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
+import { useNavigate } from "react-router-dom";
 
 const ConnectWallet = ({ setSigner, setWalletAddress }) => {
   const [isConnected, setIsConnected] = useState(false);
+  const navigate = useNavigate();
 
   const connectWallet = async () => {
     if (window.ethereum) {
       try {
-        await window.ethereum.request({ method: "eth_requestAccounts" }); // minta akses wallet
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         const address = await signer.getAddress();
         setSigner(signer);
         setWalletAddress(address);
         setIsConnected(true);
-      } catch (err) {
-        console.error("Error connecting wallet:", err);
-        alert("Gagal menghubungkan wallet.");
+        navigate("/arena"); // ➜ Redirect setelah connect
+      } catch (error) {
+        console.error("Failed to connect wallet:", error);
       }
     } else {
-      alert("MetaMask tidak terdeteksi!");
+      alert("MetaMask not detected!");
     }
   };
 
