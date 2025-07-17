@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
 import contractABI from '../utils/contractABI.json';
 import HealthBar from './HealthBar';
-import ActionButton from './ActionButton';
+import ActionButton from './ActionButtons';
 import StatusDisplay from './StatusDisplay';
 
 const CONTRACT_ADDRESS = '0x95dd66c55214a3d603fe1657e22f710692fcbd9b';
