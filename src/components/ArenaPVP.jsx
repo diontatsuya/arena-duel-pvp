@@ -1,92 +1,78 @@
-import React, { useEffect, useState } from "react";
-import { Contract } from "ethers";
+// src/components/ArenaPVP.jsx
+import { useEffect, useState } from "react";
+import { ethers } from "ethers";
+import ArenaUI from "./ArenaUI";
 import contractABI from "../utils/contractABI.json";
-import { contractAddress } from "../utils/contractAddress";
+import { CONTRACT_ADDRESS } from "../utils/constants";
 
-const ArenaPVP = ({ address, contract, setContract }) => {
-  const [status, setStatus] = useState("");
-  const [playerHP, setPlayerHP] = useState(100);
-  const [opponentHP, setOpponentHP] = useState(100);
+const ArenaPVP = () => {
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [contract, setContract] = useState(null);
+  const [account, setAccount] = useState(null);
+  const [player, setPlayer] = useState(null);
+  const [opponent, setOpponent] = useState(null);
   const [isTurn, setIsTurn] = useState(false);
+  const [loading, setLoading] = useState(true);
 
+  // Inisialisasi ethers
   useEffect(() => {
-    const setup = async () => {
-      if (!window.ethereum) return;
+    const init = async () => {
+      if (window.ethereum) {
+        const _provider = new ethers.BrowserProvider(window.ethereum);
+        const _signer = await _provider.getSigner();
+        const _account = await _signer.getAddress();
+        const _contract = new ethers.Contract(
+          CONTRACT_ADDRESS,
+          contractABI,
+          _signer
+        );
 
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const gameContract = new Contract(contractAddress, contractABI, signer);
-      setContract(gameContract);
+        const playerData = await _contract.players(_account);
+        const opponentData = await _contract.players(playerData.opponent);
+
+        setProvider(_provider);
+        setSigner(_signer);
+        setAccount(_account);
+        setContract(_contract);
+        setPlayer(playerData);
+        setOpponent(opponentData);
+        setIsTurn(playerData.isTurn);
+        setLoading(false);
+      }
     };
 
-    if (!contract) {
-      setup();
-    }
-
-    const fetchStatus = async () => {
-      if (!contract) return;
-      const data = await contract.getStatus(address);
-      setPlayerHP(data[0]);
-      setOpponentHP(data[1]);
-      setIsTurn(data[2]);
-    };
-
-    fetchStatus();
-  }, [contract, address, setContract]);
+    init();
+  }, []);
 
   const handleAction = async (action) => {
     if (!contract || !isTurn) return;
     try {
-      const tx = await contract.takeAction(action); // 1: attack, 2: defend, 3: heal
-      setStatus("Waiting for transaction...");
+      const tx = await contract.playTurn(action);
       await tx.wait();
-      setStatus("Action completed.");
-    } catch (err) {
-      console.error(err);
-      setStatus("Transaction failed.");
+      const updatedPlayer = await contract.players(account);
+      const updatedOpponent = await contract.players(updatedPlayer.opponent);
+      setPlayer(updatedPlayer);
+      setOpponent(updatedOpponent);
+      setIsTurn(updatedPlayer.isTurn);
+    } catch (error) {
+      console.error("Action failed", error);
     }
   };
 
+  if (loading || !player || !opponent) {
+    return <div className="text-center mt-10 text-white">Loading...</div>;
+  }
+
   return (
-    <div className="text-center space-y-4">
-      <div className="flex justify-around">
-        <div>
-          <h2 className="text-lg font-bold">You</h2>
-          <p>HP: {playerHP}</p>
-        </div>
-        <div>
-          <h2 className="text-lg font-bold">Opponent</h2>
-          <p>HP: {opponentHP}</p>
-        </div>
-      </div>
-      <div>
-        {isTurn ? (
-          <div className="space-x-2">
-            <button
-              onClick={() => handleAction(1)}
-              className="bg-red-500 text-white px-4 py-2 rounded-full"
-            >
-              Attack
-            </button>
-            <button
-              onClick={() => handleAction(2)}
-              className="bg-yellow-500 text-white px-4 py-2 rounded-full"
-            >
-              Defend
-            </button>
-            <button
-              onClick={() => handleAction(3)}
-              className="bg-green-500 text-white px-4 py-2 rounded-full"
-            >
-              Heal
-            </button>
-          </div>
-        ) : (
-          <p>Waiting for opponent's turn...</p>
-        )}
-      </div>
-      <p>{status}</p>
-    </div>
+    <ArenaUI
+      isPVP={true}
+      isTurn={isTurn}
+      playerHP={player.hp.toString()}
+      enemyHP={opponent.hp.toString()}
+      onAction={handleAction}
+      debugData={{ player, opponent }}
+    />
   );
 };
 
