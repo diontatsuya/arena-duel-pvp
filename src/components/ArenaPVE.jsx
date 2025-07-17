@@ -1,49 +1,100 @@
-import React, { useState } from "react";
+// src/components/ArenaPVE.jsx
+import { useEffect, useState } from "react";
+import { ethers } from "ethers";
+import ArenaUI from "./ArenaUI";
+import contractABI from "../utils/contractABI.json";
+import { CONTRACT_ADDRESS } from "../utils/constants";
 
-export default function ArenaPVE() {
-  const [playerHP, setPlayerHP] = useState(100);
-  const [enemyHP, setEnemyHP] = useState(100);
+const ArenaPVE = () => {
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [contract, setContract] = useState(null);
+  const [account, setAccount] = useState(null);
+  const [player, setPlayer] = useState({ hp: 100 });
+  const [enemy, setEnemy] = useState({ hp: 100 });
+  const [isTurn, setIsTurn] = useState(true);
   const [log, setLog] = useState([]);
 
-  const handleAction = (action) => {
-    let newLog = [`You chose ${action}`];
-    let enemyAction = ["attack", "defend", "heal"][Math.floor(Math.random() * 3)];
-    newLog.push(`Enemy chose ${enemyAction}`);
+  // Inisialisasi provider dan signer
+  useEffect(() => {
+    const init = async () => {
+      if (window.ethereum) {
+        const _provider = new ethers.BrowserProvider(window.ethereum);
+        const _signer = await _provider.getSigner();
+        const _account = await _signer.getAddress();
+        const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
 
-    let newPlayerHP = playerHP;
-    let newEnemyHP = enemyHP;
+        setProvider(_provider);
+        setSigner(_signer);
+        setContract(_contract);
+        setAccount(_account);
+      }
+    };
 
-    // Simulasi damage
-    if (action === "attack" && enemyAction !== "defend") newEnemyHP -= 20;
-    if (enemyAction === "attack" && action !== "defend") newPlayerHP -= 20;
-    if (action === "heal") newPlayerHP += 10;
-    if (enemyAction === "heal") newEnemyHP += 10;
+    init();
+  }, []);
 
-    setPlayerHP(Math.max(0, Math.min(100, newPlayerHP)));
-    setEnemyHP(Math.max(0, Math.min(100, newEnemyHP)));
-    setLog((prev) => [...prev, ...newLog]);
+  const addLog = (message) => {
+    setLog((prev) => [message, ...prev.slice(0, 4)]);
+  };
+
+  const enemyAction = () => {
+    const action = Math.floor(Math.random() * 3); // 0: attack, 1: defend, 2: heal
+    let newEnemy = { ...enemy };
+    let newPlayer = { ...player };
+
+    if (action === 0) {
+      newPlayer.hp -= 10;
+      addLog("Enemy attacks! -10 HP");
+    } else if (action === 1) {
+      addLog("Enemy defends!");
+    } else {
+      newEnemy.hp += 5;
+      if (newEnemy.hp > 100) newEnemy.hp = 100;
+      addLog("Enemy heals +5 HP");
+    }
+
+    setPlayer(newPlayer);
+    setEnemy(newEnemy);
+    setIsTurn(true);
+  };
+
+  const handleAction = async (action) => {
+    if (!isTurn) return;
+
+    let newPlayer = { ...player };
+    let newEnemy = { ...enemy };
+
+    if (action === 0) {
+      newEnemy.hp -= 10;
+      addLog("You attack! -10 HP to enemy");
+    } else if (action === 1) {
+      addLog("You defend!");
+    } else if (action === 2) {
+      newPlayer.hp += 5;
+      if (newPlayer.hp > 100) newPlayer.hp = 100;
+      addLog("You heal +5 HP");
+    }
+
+    setPlayer(newPlayer);
+    setEnemy(newEnemy);
+    setIsTurn(false);
+
+    setTimeout(() => {
+      enemyAction();
+    }, 1000);
   };
 
   return (
-    <div className="p-4">
-      <h2>PVE Mode</h2>
-      <p>Your HP: {playerHP}</p>
-      <p>Enemy HP: {enemyHP}</p>
-
-      <div className="flex gap-2 mt-4">
-        <button onClick={() => handleAction("attack")}>Attack</button>
-        <button onClick={() => handleAction("defend")}>Defend</button>
-        <button onClick={() => handleAction("heal")}>Heal</button>
-      </div>
-
-      <div className="mt-4">
-        <h3>Battle Log:</h3>
-        <ul>
-          {log.map((l, i) => (
-            <li key={i}>{l}</li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    <ArenaUI
+      isPVP={false}
+      isTurn={isTurn}
+      playerHP={player.hp}
+      enemyHP={enemy.hp}
+      onAction={handleAction}
+      debugData={{ account, player, enemy, log }}
+    />
   );
-}
+};
+
+export default ArenaPVE;
