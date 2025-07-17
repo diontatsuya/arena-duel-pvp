@@ -1,63 +1,73 @@
-import React from 'react';
-import GameLog from './GameLog';
+import React from "react";
 
-const ArenaUI = ({
+function ArenaUI({
   isPVP,
   playerHP,
   opponentHP,
-  isTurn,
+  isPlayerTurn,
   onAction,
   battleLog,
-  debugMatch
-}) => {
+  onDebug,
+}) {
   return (
-    <div className="max-w-md mx-auto bg-white p-6 rounded-xl shadow-lg mt-10 text-center">
-      <h2 className="text-2xl font-bold mb-4">
-        {isPVP ? 'PVP Mode' : 'PVE Mode'}
-      </h2>
+    <div className="p-4 max-w-xl mx-auto text-white">
+      <h2 className="text-2xl font-bold mb-4">{isPVP ? "PVP Mode" : "PVE Mode"}</h2>
 
-      <div className="mb-4">
-        <p className="font-semibold">Your HP: {playerHP}</p>
-        <p className="font-semibold">Enemy HP: {opponentHP}</p>
+      <div className="flex justify-between mb-4">
+        <div>
+          <h3 className="font-semibold">You</h3>
+          <p>HP: {playerHP}</p>
+        </div>
+        <div>
+          <h3 className="font-semibold">{isPVP ? "Opponent" : "Enemy"}</h3>
+          <p>HP: {opponentHP}</p>
+        </div>
       </div>
 
-      {isTurn ? (
-        <div className="flex justify-center gap-4 mb-4">
+      {isPlayerTurn ? (
+        <div className="flex gap-2 mb-4">
           <button
-            onClick={() => onAction('attack')}
-            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl"
+            onClick={() => onAction("attack")}
+            className="bg-red-500 px-4 py-2 rounded hover:bg-red-600"
           >
             Attack
           </button>
           <button
-            onClick={() => onAction('defend')}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl"
+            onClick={() => onAction("defend")}
+            className="bg-blue-500 px-4 py-2 rounded hover:bg-blue-600"
           >
             Defend
           </button>
           <button
-            onClick={() => onAction('heal')}
-            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl"
+            onClick={() => onAction("heal")}
+            className="bg-green-500 px-4 py-2 rounded hover:bg-green-600"
           >
             Heal
           </button>
         </div>
       ) : (
-        <p className="italic text-gray-600 mb-4">Waiting for opponent's turn...</p>
+        <p className="italic text-center mb-4">
+          Waiting for {isPVP ? "opponent's" : "enemy's"} turn...
+        </p>
       )}
 
-      {isPVP && (
-        <button
-          onClick={debugMatch}
-          className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-xl mb-4"
-        >
-          🔧 Debug Match
-        </button>
-      )}
+      <div className="bg-gray-800 p-3 rounded mb-4 h-40 overflow-y-auto text-sm">
+        <h4 className="font-semibold mb-2">Battle Log:</h4>
+        {battleLog.length === 0 ? (
+          <p className="text-gray-400">No actions yet.</p>
+        ) : (
+          battleLog.map((entry, index) => <p key={index}>{entry}</p>)
+        )}
+      </div>
 
-      <GameLog battleLog={battleLog} />
+      <button
+        onClick={onDebug}
+        className="bg-yellow-500 px-4 py-2 rounded hover:bg-yellow-600"
+      >
+        Debug: Force Turn Swap
+      </button>
     </div>
   );
-};
+}
 
 export default ArenaUI;
