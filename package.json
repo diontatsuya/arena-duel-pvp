@@ -11,7 +11,9 @@
     "@privy-io/react-auth": "^2.0.8",
     "ethers": "^6.7.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-toastify": "^9.1.3",       // opsional
+    "react-spinners": "^0.13.8"       // opsional
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",
