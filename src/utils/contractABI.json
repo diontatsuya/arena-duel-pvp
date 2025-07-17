@@ -7,27 +7,15 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint8",
-        "name": "action",
-        "type": "uint8"
-      }
-    ],
-    "name": "performAction",
+    "inputs": [],
+    "name": "takeTurn",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "player",
-        "type": "address"
-      }
-    ],
-    "name": "getStatus",
+    "inputs": [],
+    "name": "getGameState",
     "outputs": [
       {
         "components": [
@@ -47,7 +35,7 @@
             "type": "bool"
           },
           {
-            "internalType": "enum ArenaDuelTurnBased.Action",
+            "internalType": "uint8",
             "name": "lastAction",
             "type": "uint8"
           }
@@ -61,23 +49,17 @@
     "type": "function"
   },
   {
-    "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "player1",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "player2",
-        "type": "address"
+        "internalType": "uint8",
+        "name": "action",
+        "type": "uint8"
       }
     ],
-    "name": "Matched",
-    "type": "event"
+    "name": "performAction",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
     "anonymous": false,
@@ -96,25 +78,6 @@
       }
     ],
     "name": "ActionPerformed",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "winner",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "loser",
-        "type": "address"
-      }
-    ],
-    "name": "GameOver",
     "type": "event"
   }
 ]
