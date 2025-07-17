@@ -1,38 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
-import contractABI from '../abi/ArenaDuelABI.json';
+import contractABI from '../utils/contractABI.json';
+import HealthBar from './HealthBar';
 
 const CONTRACT_ADDRESS = '0x95dd66c55214a3d603fe1657e22f710692fcbd9b';
-const TARGET_CHAIN_ID = '0xc478'; // Polygon Mumbai (misalnya, ubah jika beda)
 
 export default function Arena() {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [contract, setContract] = useState(null);
   const [account, setAccount] = useState(null);
-  const [mode, setMode] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [contract, setContract] = useState(null);
+  const [playerStatus, setPlayerStatus] = useState(null);
+  const [opponentStatus, setOpponentStatus] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMyTurn, setIsMyTurn] = useState(false);
 
-  // Inisialisasi Wallet dan jaringan
-  const connectWallet = async () => {
-    if (window.ethereum) {
-      try {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
+  // Cek jaringan dan koneksi wallet
+  useEffect(() => {
+    const init = async () => {
+      if (window.ethereum) {
+        const prov = new ethers.BrowserProvider(window.ethereum);
+        const network = await prov.getNetwork();
 
-        const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
-        if (currentChainId !== TARGET_CHAIN_ID) {
+        if (network.chainId !== 50312) {
+          alert('Please switch to Somnia Testnet (Chain ID 0xc478)');
           try {
             await window.ethereum.request({
               method: 'wallet_switchEthereumChain',
-              params: [{ chainId: TARGET_CHAIN_ID }],
+              params: [{ chainId: '0xc478' }],
             });
-          } catch (switchError) {
-            alert('Gagal ganti jaringan. Silakan ganti jaringan secara manual.');
+          } catch (err) {
+            console.error('Switch network failed:', err);
             return;
           }
         }
 
-        const prov = new ethers.BrowserProvider(window.ethereum);
         const signer = await prov.getSigner();
         const address = await signer.getAddress();
         const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
@@ -41,84 +43,96 @@ export default function Arena() {
         setSigner(signer);
         setAccount(address);
         setContract(contract);
-      } catch (error) {
-        console.error('Wallet connection error:', error);
+      } else {
+        alert('Please install MetaMask!');
       }
-    } else {
-      alert('Metamask tidak ditemukan');
-    }
-  };
-
-  // Pantau perubahan akun dan jaringan
-  useEffect(() => {
-    connectWallet();
-
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', () => {
-        window.location.reload();
-      });
-      window.ethereum.on('chainChanged', () => {
-        window.location.reload();
-      });
-    }
+    };
+    init();
   }, []);
 
-  const joinArena = async () => {
-    if (!contract || !mode) {
-      alert('Harap pilih mode dan pastikan wallet terkoneksi!');
-      return;
-    }
+  // Ambil status player setelah koneksi sukses
+  useEffect(() => {
+    const fetchStatus = async () => {
+      if (!contract || !account) return;
+      const me = await contract.players(account);
+      if (me.opponent !== ethers.ZeroAddress) {
+        const opp = await contract.players(me.opponent);
+        setOpponentStatus(opp);
+      }
+      setPlayerStatus(me);
+      setIsMyTurn(me.isTurn);
+    };
+    fetchStatus();
+  }, [contract, account]);
 
+  const handleAction = async (action) => {
+    if (!contract || !signer) return;
+    setIsLoading(true);
     try {
-      setLoading(true);
-      const tx = await contract.joinArena();
+      const tx = await contract.takeAction(action);
       await tx.wait();
-      alert('Berhasil masuk arena dalam mode ' + mode.toUpperCase());
+      const updated = await contract.players(account);
+      setPlayerStatus(updated);
+      setIsMyTurn(updated.isTurn);
+
+      if (updated.opponent !== ethers.ZeroAddress) {
+        const opp = await contract.players(updated.opponent);
+        setOpponentStatus(opp);
+      }
     } catch (err) {
-      console.error('Join failed:', err);
-      alert('Gagal masuk arena.');
-    } finally {
-      setLoading(false);
+      console.error('Action failed:', err);
     }
+    setIsLoading(false);
   };
 
+  const getHpPercent = (hp) => Math.max((hp / 100) * 100, 0);
+
   return (
-    <div className="text-white">
-      {!account ? (
-        <button
-          onClick={connectWallet}
-          className="px-4 py-2 bg-yellow-500 rounded"
-        >
-          Connect Wallet
-        </button>
-      ) : (
+    <div className="bg-gray-900 text-white p-6 rounded-xl shadow-md max-w-xl mx-auto">
+      <div className="mb-4">
+        <strong>Connected:</strong> {account}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <p className="mb-2">Connected as: {account}</p>
-          <div className="mb-4">
-            <button
-              onClick={() => setMode('pvp')}
-              className={`mr-2 px-4 py-2 ${mode === 'pvp' ? 'bg-blue-700' : 'bg-blue-500'} text-white rounded`}
-            >
-              Join PvP
-            </button>
-            <button
-              onClick={() => setMode('ai')}
-              className={`px-4 py-2 ${mode === 'ai' ? 'bg-green-700' : 'bg-green-500'} text-white rounded`}
-            >
-              Join vs AI
-            </button>
-          </div>
-          {mode && (
-            <button
-              onClick={joinArena}
-              className="px-4 py-2 bg-purple-600 text-white rounded"
-              disabled={loading}
-            >
-              {loading ? 'Joining...' : 'Enter Arena'}
-            </button>
-          )}
+          <h2 className="font-bold mb-1">You</h2>
+          <HealthBar hp={playerStatus?.hp || 0} />
+          <p className="text-sm">Last Action: {playerStatus?.lastAction || 'None'}</p>
         </div>
-      )}
+        <div>
+          <h2 className="font-bold mb-1">Opponent</h2>
+          <HealthBar hp={opponentStatus?.hp || 0} />
+          <p className="text-sm">Last Action: {opponentStatus?.lastAction || 'None'}</p>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <p>Current Turn: {isMyTurn ? 'Your turn!' : 'Waiting for opponent...'}</p>
+      </div>
+
+      <div className="flex justify-around">
+        <button
+          className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded"
+          onClick={() => handleAction(1)}
+          disabled={!isMyTurn || isLoading}
+        >
+          Attack
+        </button>
+        <button
+          className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded"
+          onClick={() => handleAction(3)}
+          disabled={!isMyTurn || isLoading}
+        >
+          Heal
+        </button>
+        <button
+          className="bg-yellow-500 hover:bg-yellow-600 px-4 py-2 rounded"
+          onClick={() => handleAction(2)}
+          disabled={!isMyTurn || isLoading}
+        >
+          Defend
+        </button>
+      </div>
     </div>
   );
 }
