@@ -5,7 +5,7 @@ export default function App() {
   const [wallet, setWallet] = useState(null);
   const [isCorrectNetwork, setIsCorrectNetwork] = useState(false);
 
-  const somniaChainId = '0x9c42'; // Ganti jika chainId Somnia testnet berbeda
+  const somniaChainId = '0xc478'; // Ganti jika chainId Somnia testnet berbeda
 
   useEffect(() => {
     const connectWallet = async () => {
