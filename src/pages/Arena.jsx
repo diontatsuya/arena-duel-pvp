@@ -1,40 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
-import contractABI from '../utils/contractABI.json';
-import HealthBar from './HealthBar';
+import contractABI from '../abi/ArenaDuelABI.json';
+import HealthBar from '../components/HealthBar';
+import { getActionName } from '../utils/helpers';
 
 const CONTRACT_ADDRESS = '0x95dd66c55214a3d603fe1657e22f710692fcbd9b';
 
 export default function Arena() {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [account, setAccount] = useState(null);
   const [contract, setContract] = useState(null);
+  const [account, setAccount] = useState(null);
+  const [mode, setMode] = useState(null);
   const [playerStatus, setPlayerStatus] = useState(null);
   const [opponentStatus, setOpponentStatus] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isMyTurn, setIsMyTurn] = useState(false);
+  const [turn, setTurn] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [message, setMessage] = useState('');
 
-  // Cek jaringan dan koneksi wallet
   useEffect(() => {
     const init = async () => {
       if (window.ethereum) {
         const prov = new ethers.BrowserProvider(window.ethereum);
-        const network = await prov.getNetwork();
-
-        if (network.chainId !== 50312) {
-          alert('Please switch to Somnia Testnet (Chain ID 0xc478)');
-          try {
-            await window.ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0xc478' }],
-            });
-          } catch (err) {
-            console.error('Switch network failed:', err);
-            return;
-          }
-        }
-
         const signer = await prov.getSigner();
         const address = await signer.getAddress();
         const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
@@ -43,96 +30,105 @@ export default function Arena() {
         setSigner(signer);
         setAccount(address);
         setContract(contract);
-      } else {
-        alert('Please install MetaMask!');
       }
     };
     init();
   }, []);
 
-  // Ambil status player setelah koneksi sukses
-  useEffect(() => {
-    const fetchStatus = async () => {
-      if (!contract || !account) return;
-      const me = await contract.players(account);
-      if (me.opponent !== ethers.ZeroAddress) {
-        const opp = await contract.players(me.opponent);
-        setOpponentStatus(opp);
-      }
-      setPlayerStatus(me);
-      setIsMyTurn(me.isTurn);
-    };
+  const joinArena = async () => {
+    if (!contract || !mode) return;
+    const tx = await contract.joinArena();
+    await tx.wait();
+    setMessage(`Joined arena in ${mode.toUpperCase()} mode!`);
     fetchStatus();
-  }, [contract, account]);
-
-  const handleAction = async (action) => {
-    if (!contract || !signer) return;
-    setIsLoading(true);
-    try {
-      const tx = await contract.takeAction(action);
-      await tx.wait();
-      const updated = await contract.players(account);
-      setPlayerStatus(updated);
-      setIsMyTurn(updated.isTurn);
-
-      if (updated.opponent !== ethers.ZeroAddress) {
-        const opp = await contract.players(updated.opponent);
-        setOpponentStatus(opp);
-      }
-    } catch (err) {
-      console.error('Action failed:', err);
-    }
-    setIsLoading(false);
   };
 
-  const getHpPercent = (hp) => Math.max((hp / 100) * 100, 0);
+  const fetchStatus = async () => {
+    if (!contract || !account) return;
+    const player = await contract.players(account);
+    if (player.opponent !== ethers.ZeroAddress) {
+      const opponent = await contract.players(player.opponent);
+      setOpponentStatus(opponent);
+    }
+    setPlayerStatus(player);
+    setTurn(player.isTurn);
+  };
+
+  const performAction = async (actionCode) => {
+    if (!contract || !turn || actionLoading) return;
+    setActionLoading(true);
+    try {
+      const tx = await contract.performAction(actionCode);
+      await tx.wait();
+      setMessage(`You chose to ${getActionName(actionCode)}!`);
+      fetchStatus();
+    } catch (err) {
+      console.error(err);
+      setMessage('Action failed.');
+    }
+    setActionLoading(false);
+  };
 
   return (
-    <div className="bg-gray-900 text-white p-6 rounded-xl shadow-md max-w-xl mx-auto">
-      <div className="mb-4">
-        <strong>Connected:</strong> {account}
-      </div>
+    <div className="max-w-xl mx-auto p-4 text-center">
+      <h1 className="text-3xl font-bold mb-4">Arena Duel</h1>
+      <p className="mb-2">Connected as: {account}</p>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div>
-          <h2 className="font-bold mb-1">You</h2>
-          <HealthBar hp={playerStatus?.hp || 0} />
-          <p className="text-sm">Last Action: {playerStatus?.lastAction || 'None'}</p>
+      {!mode && (
+        <div className="mb-4">
+          <button onClick={() => setMode('pvp')} className="mr-2 px-4 py-2 bg-blue-500 text-white rounded">Join PvP</button>
+          <button onClick={() => setMode('ai')} className="px-4 py-2 bg-green-500 text-white rounded">Join vs AI</button>
         </div>
-        <div>
-          <h2 className="font-bold mb-1">Opponent</h2>
-          <HealthBar hp={opponentStatus?.hp || 0} />
-          <p className="text-sm">Last Action: {opponentStatus?.lastAction || 'None'}</p>
+      )}
+
+      {mode && !playerStatus && (
+        <button onClick={joinArena} className="px-4 py-2 bg-purple-600 text-white rounded">Enter Arena</button>
+      )}
+
+      {playerStatus && (
+        <div className="mt-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold mb-2">Your Status</h2>
+            <HealthBar hp={Number(playerStatus.hp)} />
+            <p>Last Action: {getActionName(playerStatus.lastAction)}</p>
+          </div>
+
+          {opponentStatus && (
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold mb-2">Opponent Status</h2>
+              <HealthBar hp={Number(opponentStatus.hp)} />
+              <p>Last Action: {getActionName(opponentStatus.lastAction)}</p>
+            </div>
+          )}
+
+          <div className="mt-4">
+            <h3 className="text-lg mb-2">Choose Your Action</h3>
+            <button
+              onClick={() => performAction(1)}
+              disabled={!turn || actionLoading}
+              className="mr-2 px-4 py-2 bg-red-500 text-white rounded disabled:opacity-50"
+            >
+              Attack
+            </button>
+            <button
+              onClick={() => performAction(2)}
+              disabled={!turn || actionLoading}
+              className="mr-2 px-4 py-2 bg-yellow-500 text-white rounded disabled:opacity-50"
+            >
+              Defend
+            </button>
+            <button
+              onClick={() => performAction(3)}
+              disabled={!turn || actionLoading}
+              className="px-4 py-2 bg-green-500 text-white rounded disabled:opacity-50"
+            >
+              Heal
+            </button>
+          </div>
+
+          {message && <p className="mt-4 text-purple-600 font-semibold">{message}</p>}
         </div>
-      </div>
-
-      <div className="mb-4">
-        <p>Current Turn: {isMyTurn ? 'Your turn!' : 'Waiting for opponent...'}</p>
-      </div>
-
-      <div className="flex justify-around">
-        <button
-          className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded"
-          onClick={() => handleAction(1)}
-          disabled={!isMyTurn || isLoading}
-        >
-          Attack
-        </button>
-        <button
-          className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded"
-          onClick={() => handleAction(3)}
-          disabled={!isMyTurn || isLoading}
-        >
-          Heal
-        </button>
-        <button
-          className="bg-yellow-500 hover:bg-yellow-600 px-4 py-2 rounded"
-          onClick={() => handleAction(2)}
-          disabled={!isMyTurn || isLoading}
-        >
-          Defend
-        </button>
-      </div>
+      )}
     </div>
   );
-      }
+}
