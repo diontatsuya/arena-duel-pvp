@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "name": "arena-duel-turnbased",
   "version": "1.0.0",
   "description": "Arena Duel Turn-Based Game on Somnia Testnet",
