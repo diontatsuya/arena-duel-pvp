@@ -5,7 +5,6 @@ const GameArena = () => {
       <div className="flex space-x-4">
         <a href="/arena-pvp" className="bg-red-500 text-white px-6 py-3 rounded hover:bg-red-600">PVP Mode</a>
         <a href="/arena-pve" className="bg-green-500 text-white px-6 py-3 rounded hover:bg-green-600">PVE Mode</a>
-        <a href="/arena-debug" className="bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600">Debug Mode</a>
       </div>
     </div>
   );
