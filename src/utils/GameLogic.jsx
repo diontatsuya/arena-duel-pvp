@@ -1,40 +1,26 @@
-// src/utils/GameLogic.jsx
+import { useState } from "react";
 
-export function performAction(playerState, action) {
-  const { hp, lastAction } = playerState;
+export const useGameLogic = () => {
+  const [playerHP, setPlayerHP] = useState(100);
+  const [enemyHP, setEnemyHP] = useState(100);
 
-  let newHP = hp;
-  let log = "";
+  const attack = () => {
+    setEnemyHP((hp) => Math.max(0, hp - 20));
+  };
 
-  switch (action) {
-    case "attack":
-      if (lastAction === "defend") {
-        log = "Serangan lawan ditahan!";
-        newHP -= 5;
-      } else {
-        log = "Serangan berhasil!";
-        newHP -= 20;
-      }
-      break;
-    case "defend":
-      log = "Bersiap bertahan.";
-      break;
-    case "heal":
-      if (hp >= 100) {
-        log = "HP sudah penuh!";
-      } else {
-        newHP += 15;
-        if (newHP > 100) newHP = 100;
-        log = "Memulihkan diri.";
-      }
-      break;
-    default:
-      log = "Tidak melakukan aksi.";
-  }
+  const defend = () => {
+    setPlayerHP((hp) => Math.min(100, hp + 10));
+  };
+
+  const heal = () => {
+    setPlayerHP((hp) => Math.min(100, hp + 20));
+  };
 
   return {
-    newHP,
-    log,
-    newLastAction: action,
+    playerHP,
+    enemyHP,
+    attack,
+    defend,
+    heal,
   };
-}
+};
