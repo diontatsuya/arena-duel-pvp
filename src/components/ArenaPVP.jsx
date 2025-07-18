@@ -16,7 +16,7 @@ const ArenaPVP = () => {
 
   const connectWallet = async () => {
     if (window.ethereum) {
-      const _provider = new ethers.providers.Web3Provider(window.ethereum);
+      const _provider = new ethers.providers.BrowserProvider(window.ethereum);
       await _provider.send("eth_requestAccounts", []);
       const _signer = _provider.getSigner();
       const _account = await _signer.getAddress();
