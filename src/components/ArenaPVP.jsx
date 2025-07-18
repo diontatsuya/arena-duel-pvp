@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ethers } from "ethers";
+import { BrowserProvider, Contract } from "ethers";
 import HealthBar from "./HealthBar";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
@@ -16,11 +16,11 @@ const ArenaPVP = () => {
 
   const connectWallet = async () => {
     if (window.ethereum) {
-      const _provider = new ethers.providers.BrowserProvider(window.ethereum);
+      const _provider = new BrowserProvider(window.ethereum);
       await _provider.send("eth_requestAccounts", []);
-      const _signer = _provider.getSigner();
+      const _signer = await _provider.getSigner();
       const _account = await _signer.getAddress();
-      const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
+      const _contract = new Contract(CONTRACT_ADDRESS, contractABI, _signer);
 
       setProvider(_provider);
       setSigner(_signer);
@@ -35,14 +35,14 @@ const ArenaPVP = () => {
     const opponentData = await contract.players(playerData.opponent);
 
     setPlayer({
-      hp: playerData.hp.toNumber(),
+      hp: Number(playerData.hp),
       isTurn: playerData.isTurn,
-      lastAction: playerData.lastAction,
+      lastAction: Number(playerData.lastAction),
     });
 
     setOpponent({
-      hp: opponentData.hp.toNumber(),
-      lastAction: opponentData.lastAction,
+      hp: Number(opponentData.hp),
+      lastAction: Number(opponentData.lastAction),
     });
   };
 
@@ -52,7 +52,7 @@ const ArenaPVP = () => {
     setTxStatus("Sending transaction...");
 
     try {
-      const tx = await contract.performAction(action);
+      const tx = await contract.takeAction(action); // Sesuai ABI
       await tx.wait();
       setTxStatus("Action completed!");
       await getStatus();
