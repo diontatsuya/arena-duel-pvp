@@ -1,140 +1,113 @@
+// src/pages/ArenaPVP.jsx
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import HealthBar from "../components/HealthBar";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
+import HealthBar from "../components/HealthBar";
 
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
-  const [account, setAccount] = useState("");
+  const [account, setAccount] = useState(null);
+  const [status, setStatus] = useState("Not connected");
   const [player, setPlayer] = useState(null);
   const [opponent, setOpponent] = useState(null);
+  const [isMyTurn, setIsMyTurn] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [txStatus, setTxStatus] = useState("");
 
   const connectWallet = async () => {
     if (window.ethereum) {
-      const _provider = new ethers.BrowserProvider(window.ethereum);
-      await _provider.send("eth_requestAccounts", []);
-      const _signer = await _provider.getSigner();
-      const _account = await _signer.getAddress();
+      const _provider = new ethers.providers.Web3Provider(window.ethereum);
+      const accounts = await _provider.send("eth_requestAccounts", []);
+      const _signer = _provider.getSigner();
       const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
 
       setProvider(_provider);
       setSigner(_signer);
-      setAccount(_account);
       setContract(_contract);
-    } else {
-      alert("Please install MetaMask to play!");
+      setAccount(accounts[0]);
+      setStatus("Connected");
+
+      // Signature (optional for Somnia)
+      const signature = await _signer.signMessage("ArenaDuel Authentication");
+      console.log("Signature:", signature);
     }
   };
 
-  const getStatus = async () => {
+  const fetchGameState = async () => {
     if (!contract || !account) return;
-    try {
-      const playerData = await contract.players(account);
-      const opponentData = await contract.players(playerData.opponent);
 
-      setPlayer({
-        hp: Number(playerData.hp),
-        isTurn: playerData.isTurn,
-        lastAction: Number(playerData.lastAction),
-      });
+    const p = await contract.players(account);
+    const o = await contract.players(p.opponent);
 
-      setOpponent({
-        hp: Number(opponentData.hp),
-        lastAction: Number(opponentData.lastAction),
-      });
-    } catch (error) {
-      console.error("Failed to get status:", error);
-    }
+    setPlayer(p);
+    setOpponent(o);
+    setIsMyTurn(p.isTurn);
   };
 
-  const performAction = async (action) => {
-    if (!contract || !account) return;
+  const handleAction = async (action) => {
+    if (!contract || !isMyTurn) return;
     setLoading(true);
-    setTxStatus("Sending transaction...");
-
-    try {
-      const tx = await contract.takeAction(action);
-      await tx.wait();
-      setTxStatus("Action completed!");
-      await getStatus();
-    } catch (err) {
-      console.error("Transaction failed:", err);
-      setTxStatus("Action failed or rejected.");
-    }
-
+    const tx = await contract.takeAction(action);
+    await tx.wait();
     setLoading(false);
+    fetchGameState();
   };
-
-  useEffect(() => {
-    connectWallet();
-  }, []);
 
   useEffect(() => {
     if (contract && account) {
-      getStatus();
+      fetchGameState();
     }
   }, [contract, account]);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4">
-      <h1 className="text-3xl font-bold mb-4">🔥 PvP Battle</h1>
-      <p className="mb-2">Connected as: {account}</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white font-sans">
+      <nav className="flex justify-between items-center p-4 border-b border-gray-700">
+        <h1 className="text-xl font-bold">Arena Duel PvP</h1>
+        {account ? (
+          <span className="text-green-400">Connected: {account.slice(0, 6)}...{account.slice(-4)}</span>
+        ) : (
+          <button onClick={connectWallet} className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 transition">
+            Connect Wallet
+          </button>
+        )}
+      </nav>
 
-      {player && opponent ? (
-        <div className="w-full max-w-xl grid grid-cols-2 gap-4 items-center mb-6">
-          <div className="text-center">
-            <h2 className="text-xl font-semibold mb-1">You</h2>
-            <HealthBar hp={player.hp} />
-            <p className="mt-2">
-              Last Action: {["None", "Attack", "Defend", "Heal"][player.lastAction]}
-            </p>
+      <main className="p-6 flex flex-col items-center">
+        {player && opponent ? (
+          <div className="w-full max-w-2xl bg-gray-800 p-6 rounded-xl shadow-lg">
+            <h2 className="text-center text-lg mb-4">Battle Status</h2>
+
+            <div className="flex justify-between mb-6">
+              <div>
+                <h3 className="mb-1">You</h3>
+                <HealthBar hp={player.hp.toNumber()} />
+              </div>
+              <div>
+                <h3 className="mb-1">Opponent</h3>
+                <HealthBar hp={opponent.hp.toNumber()} />
+              </div>
+            </div>
+
+            <div className="text-center">
+              {loading ? (
+                <p>Processing action...</p>
+              ) : isMyTurn ? (
+                <div className="flex justify-center space-x-4">
+                  <button onClick={() => handleAction(1)} className="bg-red-500 px-4 py-2 rounded hover:bg-red-600">Attack</button>
+                  <button onClick={() => handleAction(2)} className="bg-yellow-500 px-4 py-2 rounded hover:bg-yellow-600">Defend</button>
+                  <button onClick={() => handleAction(3)} className="bg-green-500 px-4 py-2 rounded hover:bg-green-600">Heal</button>
+                </div>
+              ) : (
+                <p className="text-gray-400">Waiting for opponent's turn...</p>
+              )}
+            </div>
           </div>
-          <div className="text-center">
-            <h2 className="text-xl font-semibold mb-1">Opponent</h2>
-            <HealthBar hp={opponent.hp} />
-            <p className="mt-2">
-              Last Action: {["None", "Attack", "Defend", "Heal"][opponent.lastAction]}
-            </p>
-          </div>
-        </div>
-      ) : (
-        <p>Waiting for matchmaking...</p>
-      )}
-
-      {player?.isTurn ? (
-        <div className="flex gap-4 mb-4">
-          <button
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg"
-            onClick={() => performAction(1)}
-            disabled={loading}
-          >
-            Attack
-          </button>
-          <button
-            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg"
-            onClick={() => performAction(2)}
-            disabled={loading}
-          >
-            Defend
-          </button>
-          <button
-            className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg"
-            onClick={() => performAction(3)}
-            disabled={loading}
-          >
-            Heal
-          </button>
-        </div>
-      ) : (
-        <p className="mb-4">⏳ Waiting for opponent's turn...</p>
-      )}
-
-      {txStatus && <p className="text-sm text-gray-300 italic">{txStatus}</p>}
+        ) : (
+          <p className="mt-10">Connecting or waiting for matchmaking...</p>
+        )}
+      </main>
     </div>
   );
 };
