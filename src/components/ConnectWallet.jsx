@@ -6,21 +6,28 @@ const ConnectWallet = () => {
   const [account, setAccount] = useState(null);
   const navigate = useNavigate();
 
+  // Mengecek apakah wallet sudah terkoneksi sebelumnya
   useEffect(() => {
     const checkWallet = async () => {
       if (window.ethereum) {
-        const accounts = await window.ethereum.request({
-          method: "eth_accounts",
-        });
-        if (accounts.length > 0) {
-          setAccount(accounts[0]);
-          navigate("/home");
+        try {
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          const accounts = await provider.send("eth_accounts", []);
+          if (accounts.length > 0) {
+            setAccount(accounts[0]);
+            navigate("/home");
+          }
+        } catch (err) {
+          console.error("Gagal memeriksa akun:", err);
         }
+      } else {
+        console.warn("MetaMask tidak ditemukan");
       }
     };
     checkWallet();
   }, [navigate]);
 
+  // Fungsi koneksi wallet
   const connectWallet = async () => {
     if (!window.ethereum) {
       alert("MetaMask tidak ditemukan!");
@@ -28,11 +35,12 @@ const ConnectWallet = () => {
     }
 
     try {
-      const accounts = await window.ethereum.request({
-        method: "eth_requestAccounts",
-      });
-      setAccount(accounts[0]);
-      navigate("/home");
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await provider.send("eth_requestAccounts", []);
+      if (accounts.length > 0) {
+        setAccount(accounts[0]);
+        navigate("/home");
+      }
     } catch (error) {
       console.error("Gagal menghubungkan wallet:", error);
     }
