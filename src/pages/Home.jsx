@@ -1,26 +1,20 @@
 // src/pages/Home.jsx
-import React from "react";
 import { Link } from "react-router-dom";
 
 const Home = () => {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-gray-800 to-black text-white text-center px-4">
-      <h1 className="text-4xl md:text-6xl font-bold mb-6">Arena Duel</h1>
-      <p className="text-lg md:text-xl mb-10">
-        Selamat datang di Arena Duel! Pilih mode permainan:
-      </p>
-      <div className="flex flex-col md:flex-row gap-6">
-        <Link
-          to="/pve"
-          className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl text-lg font-semibold shadow-lg"
-        >
-          Player vs Environment (PVE)
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-800 to-gray-900 text-white p-4">
+      <h1 className="text-4xl md:text-6xl font-bold mb-10">Arena Duel</h1>
+      <div className="space-x-4">
+        <Link to="/pve">
+          <button className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-2xl text-lg font-semibold shadow-lg transition-all">
+            Player vs AI (PvE)
+          </button>
         </Link>
-        <Link
-          to="/pvp"
-          className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-xl text-lg font-semibold shadow-lg"
-        >
-          Player vs Player (PVP)
+        <Link to="/pvp">
+          <button className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-2xl text-lg font-semibold shadow-lg transition-all">
+            Player vs Player (PvP)
+          </button>
         </Link>
       </div>
     </div>
