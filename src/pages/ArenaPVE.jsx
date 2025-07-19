@@ -5,7 +5,7 @@ import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
 import HealthBar from "../components/HealthBar";
 import { Button } from "../components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "../components/ui/card";
 
 const ArenaPVE = () => {
   const [provider, setProvider] = useState(null);
