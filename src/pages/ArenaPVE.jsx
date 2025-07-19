@@ -1,5 +1,5 @@
 import React from "react";
-import ArenaUI from "./ArenaUI";
+import ArenaUI from "../components/ArenaUI";
 import { useGameLogic } from "../utils/GameLogic";
 
 const ArenaPVE = () => {
