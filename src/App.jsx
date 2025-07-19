@@ -1,81 +1,22 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import Home from "./pages/Home";
 import ArenaPVP from "./pages/ArenaPVP";
 import ArenaPVE from "./pages/ArenaPVE";
-import Home from "./pages/Home";
 
-const pageVariants = {
-  initial: { opacity: 0, y: 30 },
-  in: { opacity: 1, y: 0 },
-  out: { opacity: 0, y: -30 },
-};
-
-const pageTransition = {
-  type: "tween",
-  ease: "easeInOut",
-  duration: 0.4,
-};
-
-const AnimatedRoutes = () => {
-  const location = useLocation();
-
-  return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route
-          path="/"
-          element={
-            <motion.div
-              initial="initial"
-              animate="in"
-              exit="out"
-              variants={pageVariants}
-              transition={pageTransition}
-            >
-              <Home />
-            </motion.div>
-          }
-        />
-        <Route
-          path="/pvp"
-          element={
-            <motion.div
-              initial="initial"
-              animate="in"
-              exit="out"
-              variants={pageVariants}
-              transition={pageTransition}
-            >
-              <ArenaPVP />
-            </motion.div>
-          }
-        />
-        <Route
-          path="/pve"
-          element={
-            <motion.div
-              initial="initial"
-              animate="in"
-              exit="out"
-              variants={pageVariants}
-              transition={pageTransition}
-            >
-              <ArenaPVE />
-            </motion.div>
-          }
-        />
-      </Routes>
-    </AnimatePresence>
-  );
-};
-
-function App() {
+const App = () => {
   return (
     <Router>
-      <AnimatedRoutes />
+      <div className="min-h-screen bg-gray-900 text-white">
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/pvp" element={<ArenaPVP />} />
+          <Route path="/pve" element={<ArenaPVE />} />
+        </Routes>
+      </div>
     </Router>
   );
-}
+};
 
 export default App;
