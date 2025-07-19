@@ -1,20 +1,24 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home';
-import ArenaPVP from './pages/ArenaPVP';
-import ArenaPVE from './pages/ArenaPVE';
-import Navbar from './components/Navbar';
+// src/App.jsx
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Navbar from "./components/Navbar";
+import Home from "./pages/Home";
+import ArenaPVE from "./pages/ArenaPVE";
+import ArenaPVP from "./pages/ArenaPVP";
 
-function App() {
+const App = () => {
   return (
     <Router>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/arena-pvp" element={<ArenaPVP />} />
-        <Route path="/arena-pve" element={<ArenaPVE />} />
-      </Routes>
+      <div className="min-h-screen bg-black text-white">
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/pve" element={<ArenaPVE />} />
+          <Route path="/pvp" element={<ArenaPVP />} />
+        </Routes>
+      </div>
     </Router>
   );
-}
+};
 
 export default App;
