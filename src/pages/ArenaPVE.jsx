@@ -1,118 +1,79 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
 import HealthBar from "../components/HealthBar";
+import attackIcon from "../assets/images/attack.png";
+import defendIcon from "../assets/images/defend.png";
+import healIcon from "../assets/images/heal.png";
 
-const ArenaPVE = () => {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
+const ArenaPVE = ({ signer }) => {
   const [contract, setContract] = useState(null);
   const [playerHP, setPlayerHP] = useState(100);
-  const [monsterHP, setMonsterHP] = useState(100);
-  const [isPlayerTurn, setIsPlayerTurn] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [opponentHP, setOpponentHP] = useState(100);
+  const [playerAction, setPlayerAction] = useState(null);
+  const [opponentAction, setOpponentAction] = useState(null);
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    const init = async () => {
-      if (!window.ethereum) return alert("MetaMask not detected");
+    if (signer) {
+      const gameContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+      setContract(gameContract);
+    }
+  }, [signer]);
 
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-
-      setProvider(provider);
-      setSigner(signer);
-      setContract(contract);
-
-      const player = await contract.players(signer.address);
-      setPlayerHP(Number(player.hp));
-      setIsPlayerTurn(player.isTurn);
-
-      const monster = await contract.monsters(signer.address);
-      setMonsterHP(Number(monster.hp));
-    };
-
-    init();
-  }, []);
-
-  const handleAction = async (action) => {
+  const handleAction = async (actionType) => {
     if (!contract) return;
 
     try {
-      setLoading(true);
-      const tx = await contract.takeAction(action);
-      setStatus("⏳ Waiting for transaction...");
+      const tx = await contract.performActionVsAI(actionType);
+      setStatus("Processing...");
       await tx.wait();
-      setStatus("✅ Action executed!");
-      await refreshStatus();
+      setStatus("Action performed!");
+      fetchStatus();
     } catch (error) {
       console.error(error);
-      setStatus("❌ Transaction failed");
-    } finally {
-      setLoading(false);
+      setStatus("Action failed.");
     }
   };
 
-  const refreshStatus = async () => {
+  const fetchStatus = async () => {
     if (!contract || !signer) return;
-
-    const player = await contract.players(await signer.getAddress());
-    const monster = await contract.monsters(await signer.getAddress());
-
-    setPlayerHP(Number(player.hp));
-    setMonsterHP(Number(monster.hp));
-    setIsPlayerTurn(player.isTurn);
+    const address = await signer.getAddress();
+    const player = await contract.players(address);
+    const ai = await contract.players(player.opponent);
+    setPlayerHP(player.hp.toNumber());
+    setOpponentHP(ai.hp.toNumber());
+    setPlayerAction(player.lastAction);
+    setOpponentAction(ai.lastAction);
   };
 
+  useEffect(() => {
+    fetchStatus();
+  }, [contract]);
+
   return (
-    <div className="max-w-xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-md">
-      <h1 className="text-3xl font-bold text-center mb-4">Arena PvE</h1>
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 text-white bg-gray-900">
+      <h1 className="text-3xl font-bold mb-6">Player vs AI</h1>
 
-      <div className="mb-4">
-        <p className="text-lg font-semibold">Player HP:</p>
-        <HealthBar hp={playerHP} />
+      <div className="w-full max-w-md">
+        <HealthBar name="You" hp={playerHP} lastAction={playerAction} />
+        <HealthBar name="AI" hp={opponentHP} lastAction={opponentAction} />
       </div>
 
-      <div className="mb-4">
-        <p className="text-lg font-semibold">Monster HP:</p>
-        <HealthBar hp={monsterHP} />
-      </div>
-
-      <div className="text-center mb-2">
-        {isPlayerTurn ? (
-          <p className="text-green-600 font-semibold">🎯 It's your turn!</p>
-        ) : (
-          <p className="text-red-600">⏳ Waiting for monster...</p>
-        )}
-      </div>
-
-      <div className="flex justify-center gap-4 mb-4">
-        <button
-          onClick={() => handleAction(1)}
-          disabled={!isPlayerTurn || loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          Attack
+      <div className="flex justify-center gap-6 mt-8">
+        <button onClick={() => handleAction(1)} title="Attack">
+          <img src={attackIcon} alt="Attack" className="w-16 h-16 hover:scale-110 transition" />
         </button>
-        <button
-          onClick={() => handleAction(2)}
-          disabled={!isPlayerTurn || loading}
-          className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 disabled:opacity-50"
-        >
-          Defend
+        <button onClick={() => handleAction(2)} title="Defend">
+          <img src={defendIcon} alt="Defend" className="w-16 h-16 hover:scale-110 transition" />
         </button>
-        <button
-          onClick={() => handleAction(3)}
-          disabled={!isPlayerTurn || loading}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-        >
-          Heal
+        <button onClick={() => handleAction(3)} title="Heal">
+          <img src={healIcon} alt="Heal" className="w-16 h-16 hover:scale-110 transition" />
         </button>
       </div>
 
-      {loading && <p className="text-center text-sm text-gray-500">{status}</p>}
+      <p className="mt-6 text-lg">{status}</p>
     </div>
   );
 };
