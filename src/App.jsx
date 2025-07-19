@@ -4,7 +4,6 @@ import Navbar from "./components/Navbar";
 import ArenaPVP from "./pages/ArenaPVP";
 import ArenaPVE from "./pages/ArenaPVE";
 import Home from "./pages/Home";
-import "./App.css";
 
 const pageVariants = {
   initial: { opacity: 0, y: 30 },
