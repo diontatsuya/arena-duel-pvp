@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BrowserProvider, Contract } from "ethers";
+import { ethers } from "ethers";
 import HealthBar from "./HealthBar";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
@@ -16,34 +16,40 @@ const ArenaPVP = () => {
 
   const connectWallet = async () => {
     if (window.ethereum) {
-      const _provider = new BrowserProvider(window.ethereum);
+      const _provider = new ethers.BrowserProvider(window.ethereum);
       await _provider.send("eth_requestAccounts", []);
       const _signer = await _provider.getSigner();
       const _account = await _signer.getAddress();
-      const _contract = new Contract(CONTRACT_ADDRESS, contractABI, _signer);
+      const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
 
       setProvider(_provider);
       setSigner(_signer);
       setAccount(_account);
       setContract(_contract);
+    } else {
+      alert("Please install MetaMask to play!");
     }
   };
 
   const getStatus = async () => {
     if (!contract || !account) return;
-    const playerData = await contract.players(account);
-    const opponentData = await contract.players(playerData.opponent);
+    try {
+      const playerData = await contract.players(account);
+      const opponentData = await contract.players(playerData.opponent);
 
-    setPlayer({
-      hp: Number(playerData.hp),
-      isTurn: playerData.isTurn,
-      lastAction: Number(playerData.lastAction),
-    });
+      setPlayer({
+        hp: Number(playerData.hp),
+        isTurn: playerData.isTurn,
+        lastAction: Number(playerData.lastAction),
+      });
 
-    setOpponent({
-      hp: Number(opponentData.hp),
-      lastAction: Number(opponentData.lastAction),
-    });
+      setOpponent({
+        hp: Number(opponentData.hp),
+        lastAction: Number(opponentData.lastAction),
+      });
+    } catch (error) {
+      console.error("Failed to get status:", error);
+    }
   };
 
   const performAction = async (action) => {
@@ -52,12 +58,12 @@ const ArenaPVP = () => {
     setTxStatus("Sending transaction...");
 
     try {
-      const tx = await contract.takeAction(action); // Sesuai ABI
+      const tx = await contract.takeAction(action);
       await tx.wait();
       setTxStatus("Action completed!");
       await getStatus();
     } catch (err) {
-      console.error(err);
+      console.error("Transaction failed:", err);
       setTxStatus("Action failed or rejected.");
     }
 
@@ -84,12 +90,16 @@ const ArenaPVP = () => {
           <div className="text-center">
             <h2 className="text-xl font-semibold mb-1">You</h2>
             <HealthBar hp={player.hp} />
-            <p className="mt-2">Last Action: {["None", "Attack", "Defend", "Heal"][player.lastAction]}</p>
+            <p className="mt-2">
+              Last Action: {["None", "Attack", "Defend", "Heal"][player.lastAction]}
+            </p>
           </div>
           <div className="text-center">
             <h2 className="text-xl font-semibold mb-1">Opponent</h2>
             <HealthBar hp={opponent.hp} />
-            <p className="mt-2">Last Action: {["None", "Attack", "Defend", "Heal"][opponent.lastAction]}</p>
+            <p className="mt-2">
+              Last Action: {["None", "Attack", "Defend", "Heal"][opponent.lastAction]}
+            </p>
           </div>
         </div>
       ) : (
