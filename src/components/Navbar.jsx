@@ -4,52 +4,43 @@ import { Link } from "react-router-dom";
 
 const Navbar = () => {
   const [walletAddress, setWalletAddress] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
 
   const connectWallet = async () => {
     if (window.ethereum) {
       try {
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-        setWalletAddress(accounts[0]);
-
-        // Minta signature setelah connect
         const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const message = "Sign to enter Arena Duel!";
-        await signer.signMessage(message);
+        const accounts = await provider.send("eth_requestAccounts", []);
+        setWalletAddress(accounts[0]);
+        setIsConnected(true);
       } catch (error) {
-        console.error("Wallet connection error:", error);
+        console.error("Wallet connection failed:", error);
       }
     } else {
-      alert("Please install MetaMask to connect your wallet.");
+      alert("Please install MetaMask to connect wallet.");
     }
   };
 
-  const truncate = (addr) => addr.slice(0, 6) + "..." + addr.slice(-4);
+  const shortenAddress = (address) =>
+    address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "";
 
   return (
-    <nav className="flex justify-between items-center p-4 bg-gray-800 shadow-md">
-      <div className="text-xl font-bold text-white">
-        <Link to="/">Arena Duel</Link>
+    <nav className="flex items-center justify-between bg-gray-900 text-white px-6 py-4 shadow-md">
+      <div className="text-2xl font-bold text-purple-400">
+        Arena Duel
       </div>
-      <div className="flex space-x-4 items-center">
-        <Link to="/pvp" className="hover:underline">
-          PVP
-        </Link>
-        <Link to="/pve" className="hover:underline">
-          PVE
-        </Link>
-        {walletAddress ? (
-          <span className="bg-green-700 px-3 py-1 rounded-md text-sm">
-            Connected: {truncate(walletAddress)}
-          </span>
-        ) : (
-          <button
-            onClick={connectWallet}
-            className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Connect Wallet
-          </button>
-        )}
+
+      <div className="flex items-center gap-6">
+        <Link to="/" className="hover:text-purple-300 transition">Home</Link>
+        <Link to="/pvp" className="hover:text-purple-300 transition">PVP</Link>
+        <Link to="/pve" className="hover:text-purple-300 transition">PVE</Link>
+
+        <button
+          onClick={connectWallet}
+          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl transition"
+        >
+          {isConnected ? shortenAddress(walletAddress) : "Connect Wallet"}
+        </button>
       </div>
     </nav>
   );
