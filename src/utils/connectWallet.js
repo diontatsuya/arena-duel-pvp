@@ -1,8 +1,6 @@
-// src/utils/connectWallet.js
 import { ethers } from "ethers";
 
-const SOMNIA_CHAIN_ID = "0xc488"; // 50312 desimal
-
+const SOMNIA_CHAIN_ID = "0xc488"; // 50312 (hex)
 const SOMNIA_PARAMS = {
   chainId: SOMNIA_CHAIN_ID,
   chainName: "Somnia Testnet",
@@ -15,7 +13,7 @@ const SOMNIA_PARAMS = {
   blockExplorerUrls: ["https://shannon-explorer.somnia.network"],
 };
 
-export async function connectWallet() {
+export async function connectWalletAndCheckNetwork() {
   if (!window.ethereum) {
     alert("MetaMask belum terpasang!");
     return null;
