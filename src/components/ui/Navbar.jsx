@@ -1,7 +1,7 @@
 // src/components/ui/Navbar.jsx
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import { Button } from "./ActionButtons";
+import { ActionButtons } from "./ActionButtons";
 import { Wallet } from "lucide-react";
 
 const Navbar = () => {
