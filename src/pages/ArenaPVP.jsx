@@ -11,9 +11,6 @@ import HealthBar from "../components/ui/HealthBar";
 import GameOverModal from "../components/ui/GameOverModal";
 import "../styles/Game.css";
 
-import attackSound from "../assets/sounds/attack.mp3";
-import defendSound from "../assets/sounds/defend.mp3";
-import healSound from "../assets/sounds/heal.mp3";
 
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
