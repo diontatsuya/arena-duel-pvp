@@ -1,95 +1,133 @@
-import { useEffect, useState } from "react";
-import { handlePlayerAction, performAIAction } from "../gameLogic/pve/handleActionPVE";
-import HealthBar from "../components/ui/HealthBar";
+import React, { useEffect, useState } from "react";
+import { ethers } from "ethers";
+import { CONTRACT_ADDRESS } from "../utils/constants";
+import { contractABI } from "../utils/contractABI";
+import { getRandomAIAction, applyAIAction } from "../gameLogic/pve/pveLogic";
+import { GameState } from "../gameLogic/GameState";
+import { TurnManager } from "../gameLogic/TurnManager";
+import HealthBar from "../components/HealthBar";
 
 const ArenaPVE = () => {
-  const [player, setPlayer] = useState({ hp: 100 });
-  const [ai, setAI] = useState({ hp: 100 });
-  const [isPlayerTurn, setIsPlayerTurn] = useState(true);
-  const [status, setStatus] = useState("");
-  const [gameOver, setGameOver] = useState(false);
+  const [playerAddress, setPlayerAddress] = useState(null);
+  const [playerHP, setPlayerHP] = useState(100);
+  const [aiHP, setAIHP] = useState(100);
+  const [gameState, setGameState] = useState(GameState.WaitingForAction);
+  const [turn, setTurn] = useState("player"); // "player" or "ai"
+  const [statusMessage, setStatusMessage] = useState("");
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [contract, setContract] = useState(null);
 
+  // Setup wallet and contract
   useEffect(() => {
-    if (gameOver) return;
+    const init = async () => {
+      if (window.ethereum) {
+        const newProvider = new ethers.BrowserProvider(window.ethereum);
+        const newSigner = await newProvider.getSigner();
+        const newContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, newSigner);
+        const address = await newSigner.getAddress();
 
-    if (!isPlayerTurn && ai.hp > 0 && player.hp > 0) {
-      const timer = setTimeout(() => {
-        const result = performAIAction(player, ai);
-        setPlayer(result.updatedPlayer);
-        setStatus(`AI uses ${result.actionName}`);
+        setProvider(newProvider);
+        setSigner(newSigner);
+        setContract(newContract);
+        setPlayerAddress(address);
+        setStatusMessage("Game ready! Your turn.");
+      }
+    };
+    init();
+  }, []);
 
-        if (result.updatedPlayer.hp <= 0) {
-          setStatus("You were defeated by the AI!");
-          setGameOver(true);
-        } else {
-          setIsPlayerTurn(true);
-        }
-      }, 1000);
+  const handlePlayerAction = async (action) => {
+    if (gameState !== GameState.WaitingForAction || turn !== "player") return;
 
-      return () => clearTimeout(timer);
+    setGameState(GameState.Resolving);
+    let newAIHP = aiHP;
+
+    if (action === "attack") {
+      newAIHP = Math.max(aiHP - 10, 0);
+      setStatusMessage("You attacked the monster!");
+    } else if (action === "heal") {
+      const healed = Math.min(playerHP + 10, 100);
+      setPlayerHP(healed);
+      setStatusMessage("You healed yourself!");
+    } else if (action === "defend") {
+      setStatusMessage("You defend!");
     }
-  }, [isPlayerTurn, ai, player, gameOver]);
 
-  const handleAction = (action) => {
-    if (!isPlayerTurn || player.hp <= 0 || ai.hp <= 0 || gameOver) return;
+    setAIHP(newAIHP);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const result = handlePlayerAction(action, player, ai);
-    setPlayer(result.updatedPlayer);
-    setAI(result.updatedAI);
-    setStatus(`You used ${result.actionName}`);
-
-    if (result.updatedAI.hp <= 0) {
-      setStatus("You defeated the AI!");
-      setGameOver(true);
-    } else {
-      setIsPlayerTurn(false);
+    if (newAIHP <= 0) {
+      setGameState(GameState.Finished);
+      setStatusMessage("You defeated the monster!");
+      return;
     }
-  };
 
-  const resetGame = () => {
-    setPlayer({ hp: 100 });
-    setAI({ hp: 100 });
-    setIsPlayerTurn(true);
-    setStatus("");
-    setGameOver(false);
+    setTurn("ai");
+    setGameState(GameState.WaitingForAction);
+
+    // AI turn
+    setTimeout(() => {
+      const aiAction = getRandomAIAction();
+      const { newPlayerHP } = applyAIAction({ aiAction, playerHP, aiHP: newAIHP });
+
+      setPlayerHP(newPlayerHP);
+      if (aiAction === "attack") {
+        setStatusMessage("Monster attacks you!");
+      } else if (aiAction === "heal") {
+        const healedAI = Math.min(newAIHP + 10, 100);
+        setAIHP(healedAI);
+        setStatusMessage("Monster heals itself!");
+      } else {
+        setStatusMessage("Monster defends!");
+      }
+
+      if (newPlayerHP <= 0) {
+        setGameState(GameState.Finished);
+        setStatusMessage("You were defeated!");
+      } else {
+        setTurn("player");
+        setGameState(GameState.WaitingForAction);
+      }
+    }, 1000);
   };
 
   return (
-    <div className="p-4 max-w-md mx-auto">
-      <h2 className="text-xl font-bold text-center mb-4">PvE Arena</h2>
+    <div className="p-4 max-w-xl mx-auto">
+      <h1 className="text-3xl font-bold text-center mb-4">Arena PvE</h1>
 
-      <div className="flex justify-between mb-4">
-        <div>
-          <p className="font-bold">Player</p>
-          <HealthBar hp={player.hp} />
-        </div>
-        <div>
-          <p className="font-bold">AI Enemy</p>
-          <HealthBar hp={ai.hp} />
-        </div>
+      <div className="mb-4">
+        <HealthBar label="Your HP" hp={playerHP} />
+        <HealthBar label="Monster HP" hp={aiHP} />
       </div>
 
-      <p className="text-center mb-2">{status}</p>
+      <div className="text-center text-lg font-semibold mb-4">
+        {statusMessage}
+      </div>
 
-      <div className="flex justify-center gap-4">
-        <button onClick={() => handleAction("attack")} disabled={!isPlayerTurn || gameOver} className="btn">
+      <div className="flex justify-center space-x-4">
+        <button
+          onClick={() => handlePlayerAction("attack")}
+          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50"
+          disabled={turn !== "player" || gameState !== GameState.WaitingForAction}
+        >
           Attack
         </button>
-        <button onClick={() => handleAction("defend")} disabled={!isPlayerTurn || gameOver} className="btn">
+        <button
+          onClick={() => handlePlayerAction("defend")}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50"
+          disabled={turn !== "player" || gameState !== GameState.WaitingForAction}
+        >
           Defend
         </button>
-        <button onClick={() => handleAction("heal")} disabled={!isPlayerTurn || gameOver} className="btn">
+        <button
+          onClick={() => handlePlayerAction("heal")}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
+          disabled={turn !== "player" || gameState !== GameState.WaitingForAction}
+        >
           Heal
         </button>
       </div>
-
-      {gameOver && (
-        <div className="text-center mt-4">
-          <button onClick={resetGame} className="btn bg-blue-500 hover:bg-blue-600 text-white">
-            Restart Game
-          </button>
-        </div>
-      )}
     </div>
   );
 };
