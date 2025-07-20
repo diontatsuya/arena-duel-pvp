@@ -1,14 +1,19 @@
 // src/pages/ArenaPVP.jsx
+
 import { useEffect, useState, useCallback } from "react";
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESS } from "../utils/constants";
 import { contractABI } from "../utils/contractABI";
 import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
-import { getPVPGameState, handlePVPAction } from "../logic/pvp/gameLogic";
+import { getPVPGameState, handlePVPAction } from "../gameLogic/pvp/PvPManager";
 import { ActionButtons } from "../components/ui/ActionButtons";
 import HealthBar from "../components/ui/HealthBar";
+import GameOverModal from "../components/ui/GameOverModal";
 import "../styles/Game.css";
 
+import attackSound from "../assets/sounds/attack.mp3";
+import defendSound from "../assets/sounds/defend.mp3";
+import healSound from "../assets/sounds/heal.mp3";
 
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
@@ -22,7 +27,7 @@ const ArenaPVP = () => {
   const [gameOver, setGameOver] = useState(false);
   const [winner, setWinner] = useState(null);
 
-  // 🔌 Hubungkan Wallet
+  // 🔌 Hubungkan Wallet & Inisialisasi Kontrak
   useEffect(() => {
     const init = async () => {
       try {
@@ -43,12 +48,18 @@ const ArenaPVP = () => {
   const fetchStatus = useCallback(async () => {
     if (!contract || !account) return;
     try {
-      const state = await getPVPGameState(contract, account);
-      setStatus(state.status);
-      setOpponentStatus(state.opponentStatus);
-      setIsMyTurn(state.isMyTurn);
-      setGameOver(state.gameOver);
-      setWinner(state.winner);
+      const {
+        status,
+        opponentStatus,
+        isMyTurn,
+        gameOver,
+        winner,
+      } = await getPVPGameState(contract, account);
+      setStatus(status);
+      setOpponentStatus(opponentStatus);
+      setIsMyTurn(isMyTurn);
+      setGameOver(gameOver);
+      setWinner(winner);
     } catch (error) {
       console.error("Fetch game state error:", error);
     }
@@ -75,6 +86,7 @@ const ArenaPVP = () => {
     }
   };
 
+  // 🔁 Reset Game State
   const restartGame = () => {
     setGameOver(false);
     setWinner(null);
@@ -82,7 +94,7 @@ const ArenaPVP = () => {
     setOpponentStatus(null);
   };
 
-  // 🧠 UI Handling
+  // 🧠 UI State
   if (!account) return <div className="text-center mt-10">Connect wallet to continue.</div>;
   if (!status || !opponentStatus) return <div className="text-center mt-10">Loading game status...</div>;
 
