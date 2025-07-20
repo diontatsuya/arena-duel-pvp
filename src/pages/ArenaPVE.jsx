@@ -1,78 +1,117 @@
-// src/pages/ArenaPVE.jsx
-import { useEffect, useState } from "react";
-import { ethers } from "ethers";
-import { contractABI } from "../utils/contractABI";
-import { CONTRACT_ADDRESS } from "../utils/constants";
+import React, { useState } from "react";
 import HealthBar from "../components/ui/HealthBar";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 
+const MAX_HEALTH = 100;
+
 const ArenaPVE = () => {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
-  const [contract, setContract] = useState(null);
-  const [player, setPlayer] = useState(null);
-  const [ai, setAI] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [turn, setTurn] = useState(null);
+  const [playerHealth, setPlayerHealth] = useState(MAX_HEALTH);
+  const [enemyHealth, setEnemyHealth] = useState(MAX_HEALTH);
+  const [turn, setTurn] = useState("player"); // 'player' or 'enemy'
+  const [log, setLog] = useState([]);
+  const [gameOver, setGameOver] = useState(false);
 
-  useEffect(() => {
-    const init = async () => {
-      if (window.ethereum) {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+  const enemyAction = () => {
+    setTimeout(() => {
+      const action = Math.random();
+      let newPlayerHealth = playerHealth;
 
-        setProvider(provider);
-        setSigner(signer);
-        setContract(contract);
-
-        const address = await signer.getAddress();
-        const data = await contract.getStatus(address);
-        setPlayer(data);
-        setAI({ hp: 100 }); // AI default
-        setTurn(data.isTurn ? "You" : "AI");
+      if (action < 0.5) {
+        newPlayerHealth -= 15;
+        setLog((prev) => [...prev, "Enemy attacks!"]);
+      } else {
+        newPlayerHealth += 10;
+        if (newPlayerHealth > MAX_HEALTH) newPlayerHealth = MAX_HEALTH;
+        setLog((prev) => [...prev, "Enemy heals!"]);
       }
-    };
-    init();
-  }, []);
 
-  const performAction = async (action) => {
-    if (!contract || !signer || loading) return;
-    setLoading(true);
-    try {
-      const tx = await contract.takeTurn(action);
-      await tx.wait();
-      const address = await signer.getAddress();
-      const updated = await contract.getStatus(address);
-      setPlayer(updated);
-      setTurn(updated.isTurn ? "You" : "AI");
-    } catch (error) {
-      console.error("Action failed:", error);
+      if (newPlayerHealth <= 0) {
+        setPlayerHealth(0);
+        setGameOver(true);
+        setLog((prev) => [...prev, "💀 You lost!"]);
+      } else {
+        setPlayerHealth(newPlayerHealth);
+        setTurn("player");
+      }
+    }, 1000);
+  };
+
+  const handleAction = (action) => {
+    if (turn !== "player" || gameOver) return;
+
+    let newEnemyHealth = enemyHealth;
+    let newPlayerHealth = playerHealth;
+
+    if (action === "attack") {
+      newEnemyHealth -= 20;
+      setLog((prev) => [...prev, "You attack!"]);
+    } else if (action === "defend") {
+      setLog((prev) => [...prev, "You defend! (no effect yet)"]);
+    } else if (action === "heal") {
+      newPlayerHealth += 15;
+      if (newPlayerHealth > MAX_HEALTH) newPlayerHealth = MAX_HEALTH;
+      setLog((prev) => [...prev, "You heal!"]);
     }
-    setLoading(false);
+
+    if (newEnemyHealth <= 0) {
+      setEnemyHealth(0);
+      setGameOver(true);
+      setLog((prev) => [...prev, "🏆 You win!"]);
+    } else {
+      setEnemyHealth(newEnemyHealth);
+      setPlayerHealth(newPlayerHealth);
+      setTurn("enemy");
+      enemyAction();
+    }
+  };
+
+  const handleRestart = () => {
+    setPlayerHealth(MAX_HEALTH);
+    setEnemyHealth(MAX_HEALTH);
+    setTurn("player");
+    setLog([]);
+    setGameOver(false);
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 py-10">
-      <h1 className="text-3xl font-bold">Arena PvE</h1>
-
-      <Card className="w-full max-w-md">
-        <CardContent className="flex flex-col items-center gap-4 p-6">
-          <HealthBar name="Player" hp={player?.hp || 0} />
-          <HealthBar name="AI Monster" hp={ai?.hp || 100} />
-          <p className="text-muted-foreground">Current Turn: {turn}</p>
-
-          <div className="flex gap-4">
-            <Button onClick={() => performAction(1)} disabled={turn !== "You" || loading}>
+    <div className="flex flex-col items-center justify-center min-h-screen text-white px-4">
+      <h1 className="text-3xl font-bold mb-6">Arena PvE</h1>
+      <Card className="w-full max-w-md p-4 bg-gray-900 rounded-2xl shadow-lg">
+        <CardContent className="space-y-4">
+          <div>
+            <p className="font-semibold">Player</p>
+            <HealthBar health={playerHealth} />
+          </div>
+          <div>
+            <p className="font-semibold">Enemy AI</p>
+            <HealthBar health={enemyHealth} />
+          </div>
+          <p className="text-center font-mono text-sm">
+            {gameOver ? "Game Over" : `${turn === "player" ? "Your" : "Enemy"} Turn`}
+          </p>
+          <div className="flex justify-center gap-3">
+            <Button onClick={() => handleAction("attack")} disabled={turn !== "player" || gameOver}>
               Attack
             </Button>
-            <Button onClick={() => performAction(2)} disabled={turn !== "You" || loading}>
+            <Button onClick={() => handleAction("defend")} disabled={turn !== "player" || gameOver}>
               Defend
             </Button>
-            <Button onClick={() => performAction(3)} disabled={turn !== "You" || loading}>
+            <Button onClick={() => handleAction("heal")} disabled={turn !== "player" || gameOver}>
               Heal
             </Button>
+          </div>
+          {gameOver && (
+            <div className="text-center mt-4">
+              <Button onClick={handleRestart} variant="outline">
+                Restart Game
+              </Button>
+            </div>
+          )}
+          <div className="text-xs mt-4 bg-gray-800 p-2 rounded-md max-h-32 overflow-y-auto">
+            {log.map((entry, idx) => (
+              <div key={idx}>{entry}</div>
+            ))}
           </div>
         </CardContent>
       </Card>
