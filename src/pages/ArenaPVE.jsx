@@ -7,32 +7,57 @@ const ArenaPVE = () => {
   const [ai, setAI] = useState({ hp: 100 });
   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
   const [status, setStatus] = useState("");
+  const [gameOver, setGameOver] = useState(false);
 
   useEffect(() => {
+    if (gameOver) return;
+
     if (!isPlayerTurn && ai.hp > 0 && player.hp > 0) {
       const timer = setTimeout(() => {
         const result = performAIAction(player, ai);
         setPlayer(result.updatedPlayer);
         setStatus(`AI uses ${result.actionName}`);
-        setIsPlayerTurn(true);
+
+        if (result.updatedPlayer.hp <= 0) {
+          setStatus("You were defeated by the AI!");
+          setGameOver(true);
+        } else {
+          setIsPlayerTurn(true);
+        }
       }, 1000);
+
       return () => clearTimeout(timer);
     }
-  }, [isPlayerTurn]);
+  }, [isPlayerTurn, ai, player, gameOver]);
 
   const handleAction = (action) => {
-    if (!isPlayerTurn || player.hp <= 0 || ai.hp <= 0) return;
+    if (!isPlayerTurn || player.hp <= 0 || ai.hp <= 0 || gameOver) return;
 
     const result = handlePlayerAction(action, player, ai);
     setPlayer(result.updatedPlayer);
     setAI(result.updatedAI);
     setStatus(`You used ${result.actionName}`);
-    setIsPlayerTurn(false);
+
+    if (result.updatedAI.hp <= 0) {
+      setStatus("You defeated the AI!");
+      setGameOver(true);
+    } else {
+      setIsPlayerTurn(false);
+    }
+  };
+
+  const resetGame = () => {
+    setPlayer({ hp: 100 });
+    setAI({ hp: 100 });
+    setIsPlayerTurn(true);
+    setStatus("");
+    setGameOver(false);
   };
 
   return (
-    <div className="p-4">
+    <div className="p-4 max-w-md mx-auto">
       <h2 className="text-xl font-bold text-center mb-4">PvE Arena</h2>
+
       <div className="flex justify-between mb-4">
         <div>
           <p className="font-bold">Player</p>
@@ -47,16 +72,24 @@ const ArenaPVE = () => {
       <p className="text-center mb-2">{status}</p>
 
       <div className="flex justify-center gap-4">
-        <button onClick={() => handleAction("attack")} disabled={!isPlayerTurn} className="btn">
+        <button onClick={() => handleAction("attack")} disabled={!isPlayerTurn || gameOver} className="btn">
           Attack
         </button>
-        <button onClick={() => handleAction("defend")} disabled={!isPlayerTurn} className="btn">
+        <button onClick={() => handleAction("defend")} disabled={!isPlayerTurn || gameOver} className="btn">
           Defend
         </button>
-        <button onClick={() => handleAction("heal")} disabled={!isPlayerTurn} className="btn">
+        <button onClick={() => handleAction("heal")} disabled={!isPlayerTurn || gameOver} className="btn">
           Heal
         </button>
       </div>
+
+      {gameOver && (
+        <div className="text-center mt-4">
+          <button onClick={resetGame} className="btn bg-blue-500 hover:bg-blue-600 text-white">
+            Restart Game
+          </button>
+        </div>
+      )}
     </div>
   );
 };
