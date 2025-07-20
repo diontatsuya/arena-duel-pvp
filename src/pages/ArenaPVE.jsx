@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { handlePlayerAction, performAIAction } from "../gameLogic/pve/handleActionPve";
+import { handlePlayerAction, performAIAction } from "../gameLogic/pve/handleActionPVE";
 import HealthBar from "../components/ui/HealthBar";
 
 const ArenaPVE = () => {
