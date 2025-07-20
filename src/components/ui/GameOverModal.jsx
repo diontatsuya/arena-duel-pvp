@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import victorySound from "../assets/audio/victory.mp3";
-import defeatSound from "../assets/audio/defeat.mp3";
+// import victorySound from "../assets/audio/victory.mp3";
+// import defeatSound from "../assets/audio/defeat.mp3";
 
 const GameOverModal = ({ isOpen, winner, playerAddress, onRestart }) => {
   const isPlayerWinner = winner?.toLowerCase() === playerAddress?.toLowerCase();
@@ -9,8 +9,9 @@ const GameOverModal = ({ isOpen, winner, playerAddress, onRestart }) => {
   useEffect(() => {
     if (!isOpen) return;
 
-    const audio = new Audio(isPlayerWinner ? victorySound : defeatSound);
-    audio.play();
+    // Nonaktifkan audio sementara
+    // const audio = new Audio(isPlayerWinner ? victorySound : defeatSound);
+    // audio.play();
   }, [isOpen, isPlayerWinner]);
 
   return (
