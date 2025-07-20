@@ -5,7 +5,7 @@ import { contractABI } from "../utils/contractABI";
 import { getRandomAIAction, applyAIAction } from "../gameLogic/pve/pveLogic";
 import { GameState } from "../gameLogic/GameState";
 import { TurnManager } from "../gameLogic/TurnManager";
-import HealthBar from "../components/HealthBar";
+import HealthBar from "../components/ui/HealthBar";
 
 const ArenaPVE = () => {
   const [playerAddress, setPlayerAddress] = useState(null);
