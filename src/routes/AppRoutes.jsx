@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import Home from "../pages/Home";
 import ArenaPVP from "../pages/ArenaPVP";
 import ArenaPVE from "../pages/ArenaPVE";
+import GamePVP from "../pages/GamePVP";
 import NotFound from "../pages/NotFound";
 
 const AppRoutes = () => {
@@ -11,6 +12,7 @@ const AppRoutes = () => {
       <Route path="/" element={<Home />} />
       <Route path="/arena-pvp" element={<ArenaPVP />} />
       <Route path="/arena-pve" element={<ArenaPVE />} />
+      <Route path="/game-pvp" element={<GamePVP />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
