@@ -1,23 +1,31 @@
-import React, { forwardRef } from "react";
-import { cn } from "@/lib/utils";
+import React from "react";
 
-const ActionButtons = forwardRef(function ActionButtons(
-  { className = "", children, type = "button", ...props },
-  ref
-) {
+const ActionButtons = ({ onAction, isDisabled }) => {
   return (
-    <button
-      ref={ref}
-      type={type}
-      className={cn(
-        "inline-flex items-center justify-center rounded-2xl bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700 active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </button>
+    <div className="flex justify-center mt-4 space-x-4">
+      <button
+        onClick={() => onAction("attack")}
+        disabled={isDisabled}
+        className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+      >
+        Attack
+      </button>
+      <button
+        onClick={() => onAction("defend")}
+        disabled={isDisabled}
+        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+      >
+        Defend
+      </button>
+      <button
+        onClick={() => onAction("heal")}
+        disabled={isDisabled}
+        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+      >
+        Heal
+      </button>
+    </div>
   );
-});
+};
 
-export { ActionButtons };
+export default ActionButtons;
