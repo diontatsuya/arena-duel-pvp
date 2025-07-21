@@ -1,90 +1,73 @@
-// src/pages/GamePVE.jsx
-import { useEffect, useState } from "react";
-import { ethers } from "ethers";
-import { contractABI } from "../utils/contractABI";
-import { CONTRACT_ADDRESS } from "../utils/constants";
-import { getRandomAIAction, resolveTurn } from "../gameLogic/pveLogic";
-import HealthBar from "../components/ui/HealthBar";
+import { useState, useEffect } from "react";
+import { getRandomAIAction, calculatePVEResult } from "../gameLogic/pve/pveLogic";
+import { getPVEAnimationClass } from "../gameLogic/pve/pveAnimations";
+import HealthBar from "../components/game/HealthBar";
+import ActionButtons from "../components/game/ActionButtons";
 
 const GamePVE = () => {
   const [playerHP, setPlayerHP] = useState(100);
   const [aiHP, setAIHP] = useState(100);
   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
-  const [statusMessage, setStatusMessage] = useState("Game started!");
+  const [log, setLog] = useState([]);
+  const [animation, setAnimation] = useState({ player: "", ai: "" });
 
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
-  const [contract, setContract] = useState(null);
-
-  useEffect(() => {
-    const connect = async () => {
-      if (window.ethereum) {
-        const _provider = new ethers.BrowserProvider(window.ethereum);
-        const _signer = await _provider.getSigner();
-        const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
-        setProvider(_provider);
-        setSigner(_signer);
-        setContract(_contract);
-      }
-    };
-    connect();
-  }, []);
-
-  const handleAction = async (playerAction) => {
-    if (!isPlayerTurn || playerHP <= 0 || aiHP <= 0) return;
+  const handleAction = (action) => {
+    if (!isPlayerTurn) return;
 
     const aiAction = getRandomAIAction();
-    const result = resolveTurn(playerAction, aiAction, playerHP, aiHP);
+    const result = calculatePVEResult(action, aiAction, playerHP, aiHP);
 
     setPlayerHP(result.newPlayerHP);
     setAIHP(result.newAIHP);
-    setStatusMessage(result.message);
+    setAnimation({
+      player: getPVEAnimationClass(action, true),
+      ai: getPVEAnimationClass(aiAction, false),
+    });
+
+    setLog((prev) => [
+      ...prev,
+      `Player chose ${action}, AI chose ${aiAction}.`,
+    ]);
+
     setIsPlayerTurn(false);
 
     setTimeout(() => {
+      setAnimation({ player: "", ai: "" });
       setIsPlayerTurn(true);
-      setStatusMessage("Your turn!");
-    }, 2000);
+    }, 1000);
   };
 
+  useEffect(() => {
+    if (playerHP <= 0 || aiHP <= 0) {
+      setLog((prev) => [
+        ...prev,
+        playerHP <= 0 ? "You lost!" : "You won!",
+      ]);
+      setIsPlayerTurn(false);
+    }
+  }, [playerHP, aiHP]);
+
   return (
-    <div className="text-center">
-      <h2 className="text-xl font-bold mb-4">Arena Duel: Player vs AI</h2>
-      <div className="flex justify-around mb-6">
-        <div>
-          <h3 className="mb-1">Your HP</h3>
-          <HealthBar hp={playerHP} />
+    <div className="p-4">
+      <h1 className="text-2xl font-bold text-center mb-4">PvE Duel</h1>
+
+      <div className="flex justify-around mb-4">
+        <div className={`transition-all duration-500 ${animation.player}`}>
+          <HealthBar label="You" hp={playerHP} />
         </div>
-        <div>
-          <h3 className="mb-1">AI HP</h3>
-          <HealthBar hp={aiHP} />
+        <div className={`transition-all duration-500 ${animation.ai}`}>
+          <HealthBar label="AI" hp={aiHP} />
         </div>
       </div>
 
-      <p className="mb-4 text-yellow-400">{statusMessage}</p>
+      <div className="flex justify-center mb-4">
+        <ActionButtons onAction={handleAction} disabled={!isPlayerTurn || playerHP <= 0 || aiHP <= 0} />
+      </div>
 
-      <div className="flex justify-center space-x-4">
-        <button
-          className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
-          onClick={() => handleAction("attack")}
-          disabled={!isPlayerTurn}
-        >
-          Attack
-        </button>
-        <button
-          className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded"
-          onClick={() => handleAction("defend")}
-          disabled={!isPlayerTurn}
-        >
-          Defend
-        </button>
-        <button
-          className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded"
-          onClick={() => handleAction("heal")}
-          disabled={!isPlayerTurn}
-        >
-          Heal
-        </button>
+      <div className="bg-gray-800 p-2 rounded-md max-h-48 overflow-y-auto text-sm">
+        {log.map((entry, idx) => (
+          <div key={idx}>{entry}</div>
+        ))}
       </div>
     </div>
   );
