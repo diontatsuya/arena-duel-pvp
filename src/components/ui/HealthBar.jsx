@@ -1,21 +1,18 @@
-// src/components/HealthBar.jsx
-const HealthBar = ({ hp }) => {
-  const sanitizedHp = typeof hp === "number" && !isNaN(hp) ? hp : 0;
-  const percentage = Math.max(0, Math.min(100, (sanitizedHp / 100) * 100));
+import React from "react";
 
-  const barColor =
-    percentage > 60
-      ? "bg-green-500"
-      : percentage > 30
-      ? "bg-yellow-500"
-      : "bg-red-500";
+const HealthBar = ({ label, hp }) => {
+  const hpPercent = Math.max(0, Math.min(100, (hp / 100) * 100));
 
   return (
-    <div className="w-full bg-gray-700 rounded-full h-5 overflow-hidden mb-1">
-      <div
-        className={`h-full ${barColor} transition-all duration-300`}
-        style={{ width: `${percentage}%` }}
-      ></div>
+    <div className="mb-4">
+      <div className="mb-1 font-bold text-center">{label}</div>
+      <div className="w-full bg-gray-700 h-6 rounded-lg overflow-hidden">
+        <div
+          className="h-full bg-green-500 transition-all duration-500"
+          style={{ width: `${hpPercent}%` }}
+        />
+      </div>
+      <div className="text-sm text-center mt-1">{hp} / 100</div>
     </div>
   );
 };
