@@ -1,119 +1,90 @@
-// src/pages/ArenaPVP.jsx
-
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import { CONTRACT_ADDRESS } from "../utils/constants";
-import { contractABI } from "../utils/contractABI";
-import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
-import { getPVPGameState, handlePVPAction } from "../gameLogic/pvp/PvPManager";
-import { ActionButtons } from "../components/ui/ActionButtons";
-import HealthBar from "../components/ui/HealthBar";
-import GameOverModal from "../components/ui/GameOverModal";
-import "../styles/Game.css";
-
+import { CONTRACT_ADDRESS } from "@/utils/constants";
+import { contractABI } from "@/utils/contractABI";
+import ActionButtons from "@/components/ui/ActionButtons";
+import HealthBar from "@/components/ui/HealthBar";
 
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
-  const [account, setAccount] = useState(null);
+  const [player, setPlayer] = useState(null);
+  const [opponent, setOpponent] = useState(null);
+  const [isTurn, setIsTurn] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const [status, setStatus] = useState(null);
-  const [opponentStatus, setOpponentStatus] = useState(null);
-  const [isMyTurn, setIsMyTurn] = useState(false);
-  const [gameOver, setGameOver] = useState(false);
-  const [winner, setWinner] = useState(null);
-
-  // 🔌 Hubungkan Wallet & Inisialisasi Kontrak
   useEffect(() => {
     const init = async () => {
-      try {
-        const { provider, signer, account } = await connectWalletAndCheckNetwork();
-        const contractInstance = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-        setProvider(provider);
-        setSigner(signer);
-        setAccount(account);
-        setContract(contractInstance);
-      } catch (error) {
-        console.error("Wallet init error:", error);
+      if (window.ethereum) {
+        const _provider = new ethers.BrowserProvider(window.ethereum);
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        const _signer = await _provider.getSigner();
+        const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
+
+        setProvider(_provider);
+        setSigner(_signer);
+        setContract(_contract);
       }
     };
+
     init();
   }, []);
 
-  // 🔄 Ambil status game dari blockchain
-  const fetchStatus = useCallback(async () => {
-    if (!contract || !account) return;
-    try {
-      const {
-        status,
-        opponentStatus,
-        isMyTurn,
-        gameOver,
-        winner,
-      } = await getPVPGameState(contract, account);
-      setStatus(status);
-      setOpponentStatus(opponentStatus);
-      setIsMyTurn(isMyTurn);
-      setGameOver(gameOver);
-      setWinner(winner);
-    } catch (error) {
-      console.error("Fetch game state error:", error);
-    }
-  }, [contract, account]);
-
   useEffect(() => {
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 3000);
-    return () => clearInterval(interval);
-  }, [fetchStatus]);
+    if (contract && signer) {
+      fetchStatus();
+    }
+  }, [contract, signer]);
 
-  // 🎯 Tangani aksi pemain
-  const handleAction = async (action) => {
+  const fetchStatus = async () => {
+    const address = await signer.getAddress();
+    const data = await contract.players(address);
+    if (data.opponent !== ethers.ZeroAddress) {
+      const opponentData = await contract.players(data.opponent);
+      setPlayer({ ...data });
+      setOpponent({ ...opponentData });
+      setIsTurn(data.isTurn);
+    }
+  };
+
+  const sendAction = async (actionType) => {
+    if (!contract || !signer) return;
     try {
-      const soundMap = {
-        attack: attackSound,
-        defend: defendSound,
-        heal: healSound,
-      };
-      new Audio(soundMap[action]).play();
-      await handlePVPAction(contract, account, action);
+      setLoading(true);
+      const tx = await contract.takeTurn(actionType);
+      await tx.wait();
+      await fetchStatus();
     } catch (error) {
       console.error("Action error:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 🔁 Reset Game State
-  const restartGame = () => {
-    setGameOver(false);
-    setWinner(null);
-    setStatus(null);
-    setOpponentStatus(null);
-  };
-
-  // 🧠 UI State
-  if (!account) return <div className="text-center mt-10">Connect wallet to continue.</div>;
-  if (!status || !opponentStatus) return <div className="text-center mt-10">Loading game status...</div>;
-
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-gray-800 to-black text-white p-4">
-      <h1 className="text-4xl font-bold mb-6">Arena Duel PvP</h1>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold text-center mb-6">Arena Duel PvP</h1>
+      {player && opponent ? (
+        <div className="flex flex-col items-center gap-6">
+          <HealthBar label="You" hp={Number(player.hp)} />
+          <HealthBar label="Opponent" hp={Number(opponent.hp)} />
 
-      <div className="w-full max-w-3xl grid grid-cols-2 gap-8 mb-8">
-        <div className="flex flex-col items-center">
-          <h2 className="text-xl mb-2">You</h2>
-          <HealthBar hp={status.hp} />
+          <div className="flex gap-4">
+            <ActionButtons onClick={() => sendAction(1)} disabled={!isTurn || loading}>
+              Attack
+            </ActionButtons>
+            <ActionButtons onClick={() => sendAction(2)} disabled={!isTurn || loading}>
+              Defend
+            </ActionButtons>
+            <ActionButtons onClick={() => sendAction(3)} disabled={!isTurn || loading}>
+              Heal
+            </ActionButtons>
+          </div>
+          {!isTurn && <p className="text-yellow-400">Waiting for opponent's turn...</p>}
         </div>
-        <div className="flex flex-col items-center">
-          <h2 className="text-xl mb-2">Opponent</h2>
-          <HealthBar hp={opponentStatus.hp} />
-        </div>
-      </div>
-
-      {gameOver ? (
-        <GameOverModal winner={winner} onRestart={restartGame} />
       ) : (
-        <ActionButtons disabled={!isMyTurn} onAction={handleAction} />
+        <div className="text-center text-gray-300">Looking for opponent...</div>
       )}
     </div>
   );
