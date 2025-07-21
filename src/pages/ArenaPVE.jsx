@@ -1,133 +1,116 @@
-import React, { useEffect, useState } from "react";
+// src/pages/ArenaPVE.jsx
+import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESS } from "../utils/constants";
 import { contractABI } from "../utils/contractABI";
-import { getRandomAIAction, applyAIAction } from "../gameLogic/pve/pveLogic";
-import { GameState } from "../gameLogic/GameState";
-import { TurnManager } from "../gameLogic/TurnManager";
 import HealthBar from "../components/ui/HealthBar";
+import ActionButtons from "../components/ui/ActionButtons";
 
 const ArenaPVE = () => {
-  const [playerAddress, setPlayerAddress] = useState(null);
-  const [playerHP, setPlayerHP] = useState(100);
-  const [aiHP, setAIHP] = useState(100);
-  const [gameState, setGameState] = useState(GameState.WaitingForAction);
-  const [turn, setTurn] = useState("player"); // "player" or "ai"
-  const [statusMessage, setStatusMessage] = useState("");
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
+  const [playerHP, setPlayerHP] = useState(100);
+  const [aiHP, setAiHP] = useState(100);
+  const [isPlayerTurn, setIsPlayerTurn] = useState(true);
+  const [gameOver, setGameOver] = useState(false);
+  const [lastAction, setLastAction] = useState("");
 
-  // Setup wallet and contract
+  // Connect wallet and setup provider
   useEffect(() => {
-    const init = async () => {
+    const connect = async () => {
       if (window.ethereum) {
-        const newProvider = new ethers.BrowserProvider(window.ethereum);
-        const newSigner = await newProvider.getSigner();
-        const newContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, newSigner);
-        const address = await newSigner.getAddress();
+        const tempProvider = new ethers.BrowserProvider(window.ethereum);
+        const tempSigner = await tempProvider.getSigner();
+        const tempContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, tempSigner);
 
-        setProvider(newProvider);
-        setSigner(newSigner);
-        setContract(newContract);
-        setPlayerAddress(address);
-        setStatusMessage("Game ready! Your turn.");
+        setProvider(tempProvider);
+        setSigner(tempSigner);
+        setContract(tempContract);
       }
     };
-    init();
+
+    connect();
   }, []);
 
-  const handlePlayerAction = async (action) => {
-    if (gameState !== GameState.WaitingForAction || turn !== "player") return;
+  // AI Turn (simple logic)
+  useEffect(() => {
+    if (!isPlayerTurn && !gameOver) {
+      setTimeout(() => {
+        const action = ["attack", "defend", "heal"][Math.floor(Math.random() * 3)];
+        handleAction(action, false);
+      }, 1000);
+    }
+  }, [isPlayerTurn]);
 
-    setGameState(GameState.Resolving);
-    let newAIHP = aiHP;
+  const handleAction = (action, isPlayer = true) => {
+    if (gameOver) return;
 
     if (action === "attack") {
-      newAIHP = Math.max(aiHP - 10, 0);
-      setStatusMessage("You attacked the monster!");
-    } else if (action === "heal") {
-      const healed = Math.min(playerHP + 10, 100);
-      setPlayerHP(healed);
-      setStatusMessage("You healed yourself!");
-    } else if (action === "defend") {
-      setStatusMessage("You defend!");
+      if (isPlayer) {
+        const damage = Math.floor(Math.random() * 21) + 10;
+        const newHP = Math.max(aiHP - damage, 0);
+        setAiHP(newHP);
+        setLastAction(`You attacked AI for ${damage} damage!`);
+        if (newHP === 0) setGameOver(true);
+      } else {
+        const damage = Math.floor(Math.random() * 21) + 10;
+        const newHP = Math.max(playerHP - damage, 0);
+        setPlayerHP(newHP);
+        setLastAction(`AI attacked you for ${damage} damage!`);
+        if (newHP === 0) setGameOver(true);
+      }
     }
 
-    setAIHP(newAIHP);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    if (newAIHP <= 0) {
-      setGameState(GameState.Finished);
-      setStatusMessage("You defeated the monster!");
-      return;
+    if (action === "defend") {
+      setLastAction(isPlayer ? "You defended!" : "AI defended!");
     }
 
-    setTurn("ai");
-    setGameState(GameState.WaitingForAction);
-
-    // AI turn
-    setTimeout(() => {
-      const aiAction = getRandomAIAction();
-      const { newPlayerHP } = applyAIAction({ aiAction, playerHP, aiHP: newAIHP });
-
-      setPlayerHP(newPlayerHP);
-      if (aiAction === "attack") {
-        setStatusMessage("Monster attacks you!");
-      } else if (aiAction === "heal") {
-        const healedAI = Math.min(newAIHP + 10, 100);
-        setAIHP(healedAI);
-        setStatusMessage("Monster heals itself!");
+    if (action === "heal") {
+      const healAmount = Math.floor(Math.random() * 11) + 10;
+      if (isPlayer) {
+        const newHP = Math.min(playerHP + healAmount, 100);
+        setPlayerHP(newHP);
+        setLastAction(`You healed for ${healAmount} HP!`);
       } else {
-        setStatusMessage("Monster defends!");
+        const newHP = Math.min(aiHP + healAmount, 100);
+        setAiHP(newHP);
+        setLastAction(`AI healed for ${healAmount} HP!`);
       }
+    }
 
-      if (newPlayerHP <= 0) {
-        setGameState(GameState.Finished);
-        setStatusMessage("You were defeated!");
-      } else {
-        setTurn("player");
-        setGameState(GameState.WaitingForAction);
-      }
-    }, 1000);
+    setIsPlayerTurn(!isPlayer);
   };
 
   return (
-    <div className="p-4 max-w-xl mx-auto">
-      <h1 className="text-3xl font-bold text-center mb-4">Arena PvE</h1>
-
-      <div className="mb-4">
-        <HealthBar label="Your HP" hp={playerHP} />
-        <HealthBar label="Monster HP" hp={aiHP} />
+    <div className="flex flex-col items-center justify-center gap-4 p-4">
+      <h1 className="text-2xl font-bold">Arena PvE (Player vs AI)</h1>
+      <div className="grid grid-cols-2 gap-8 w-full max-w-xl">
+        <div className="text-center">
+          <p className="font-semibold mb-2">You</p>
+          <HealthBar hp={playerHP} />
+        </div>
+        <div className="text-center">
+          <p className="font-semibold mb-2">AI</p>
+          <HealthBar hp={aiHP} />
+        </div>
       </div>
 
-      <div className="text-center text-lg font-semibold mb-4">
-        {statusMessage}
-      </div>
+      {!gameOver ? (
+        <div className="mt-6">
+          {isPlayerTurn ? (
+            <ActionButtons onAction={(action) => handleAction(action)} />
+          ) : (
+            <p>AI's turn...</p>
+          )}
+        </div>
+      ) : (
+        <div className="mt-6 font-bold text-xl">
+          {playerHP === 0 ? "You lost!" : "You won!"}
+        </div>
+      )}
 
-      <div className="flex justify-center space-x-4">
-        <button
-          onClick={() => handlePlayerAction("attack")}
-          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50"
-          disabled={turn !== "player" || gameState !== GameState.WaitingForAction}
-        >
-          Attack
-        </button>
-        <button
-          onClick={() => handlePlayerAction("defend")}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50"
-          disabled={turn !== "player" || gameState !== GameState.WaitingForAction}
-        >
-          Defend
-        </button>
-        <button
-          onClick={() => handlePlayerAction("heal")}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
-          disabled={turn !== "player" || gameState !== GameState.WaitingForAction}
-        >
-          Heal
-        </button>
-      </div>
+      <p className="mt-4 italic">{lastAction}</p>
     </div>
   );
 };
