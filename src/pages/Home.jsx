@@ -11,13 +11,13 @@ const Home = () => {
 
       <div className="flex justify-center gap-4 mt-6">
         <a
-          href="/pvp"
+          href="/arena-pvp"
           className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
         >
           Mode PvP
         </a>
         <a
-          href="/arenapve"
+          href="/arena-pve"
           className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg"
         >
           Mode PvE
