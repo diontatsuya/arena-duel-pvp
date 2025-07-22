@@ -1,118 +1,113 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
+import HealthBar from "../components/ui/HealthBar";
+import ActionButtons from "../components/ui/ActionButton";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
-import ActionButtons from "../components/ui/ActionButton";
-import HealthBar from "../components/ui/HealthBar";
 
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
-  const [player, setPlayer] = useState({});
-  const [opponent, setOpponent] = useState({});
-  const [isPlayerTurn, setIsPlayerTurn] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [player, setPlayer] = useState(null);
+  const [opponent, setOpponent] = useState(null);
+  const [isTurn, setIsTurn] = useState(false);
   const [status, setStatus] = useState("Menunggu lawan bergabung...");
 
+  // Setup ethers
   useEffect(() => {
     const init = async () => {
-      if (!window.ethereum) return alert("Install MetaMask");
-      const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
-      const tempSigner = await tempProvider.getSigner();
-      const tempContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, tempSigner);
+      if (window.ethereum) {
+        const _provider = new ethers.BrowserProvider(window.ethereum);
+        const _signer = await _provider.getSigner();
+        const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
 
-      setProvider(tempProvider);
-      setSigner(tempSigner);
-      setContract(tempContract);
+        setProvider(_provider);
+        setSigner(_signer);
+        setContract(_contract);
 
-      await window.ethereum.request({ method: "eth_requestAccounts" });
+        const address = await _signer.getAddress();
+        const playerData = await _contract.players(address);
 
-      const playerAddress = await tempSigner.getAddress();
-      const data = await tempContract.players(playerAddress);
-      const opponentAddress = data.opponent;
+        // Jika sudah punya lawan
+        if (playerData.opponent !== ethers.ZeroAddress) {
+          const opponentData = await _contract.players(playerData.opponent);
+          setPlayer({ ...playerData, address });
+          setOpponent({ ...opponentData, address: playerData.opponent });
+          setIsTurn(playerData.isTurn);
+          setStatus("Pertarungan dimulai!");
+        } else {
+          setPlayer({ ...playerData, address });
+          setStatus("Menunggu lawan bergabung...");
+        }
 
-      if (opponentAddress !== ethers.constants.AddressZero) {
-        const opponentData = await tempContract.players(opponentAddress);
-        setOpponent({
-          address: opponentAddress,
-          hp: opponentData.hp.toNumber(),
-          lastAction: opponentData.lastAction,
+        // Event listener
+        _contract.on("Matched", (p1, p2) => {
+          if (p1 === address || p2 === address) {
+            window.location.reload(); // refresh agar data player & lawan terbaru
+          }
         });
-        setStatus("Pertarungan dimulai!");
+
+        _contract.on("ActionTaken", async (playerAddr) => {
+          if (playerAddr === address || playerAddr === playerData.opponent) {
+            const updatedPlayer = await _contract.players(address);
+            const updatedOpponent = await _contract.players(playerData.opponent);
+
+            setPlayer({ ...updatedPlayer, address });
+            setOpponent({ ...updatedOpponent, address: playerData.opponent });
+            setIsTurn(updatedPlayer.isTurn);
+
+            // Update status
+            if (updatedPlayer.hp === 0) {
+              setStatus("Kamu kalah!");
+            } else if (updatedOpponent.hp === 0) {
+              setStatus("Kamu menang!");
+            } else if (updatedPlayer.isTurn) {
+              setStatus("Giliran kamu!");
+            } else {
+              setStatus("Menunggu giliran lawan...");
+            }
+          }
+        });
       }
-
-      setPlayer({
-        address: playerAddress,
-        hp: data.hp.toNumber(),
-        lastAction: data.lastAction,
-      });
-
-      setIsPlayerTurn(data.isTurn);
     };
 
     init();
   }, []);
 
-  const fetchStatus = async () => {
-    const playerAddress = await signer.getAddress();
-    const data = await contract.players(playerAddress);
-    const opponentData = await contract.players(data.opponent);
+  const handleAction = async (actionIndex) => {
+    if (!contract || !isTurn) return;
 
-    setPlayer({
-      address: playerAddress,
-      hp: data.hp.toNumber(),
-      lastAction: data.lastAction,
-    });
-
-    setOpponent({
-      address: data.opponent,
-      hp: opponentData.hp.toNumber(),
-      lastAction: opponentData.lastAction,
-    });
-
-    setIsPlayerTurn(data.isTurn);
-  };
-
-  const handleAction = async (action) => {
     try {
-      setLoading(true);
-      const tx = await contract.takeTurn(action);
+      const tx = await contract.takeAction(actionIndex);
+      setStatus("Menunggu konfirmasi transaksi...");
       await tx.wait();
-
-      setStatus(`Kamu memilih ${action.toUpperCase()}!`);
-      await fetchStatus();
-    } catch (error) {
-      console.error("Gagal mengirim aksi:", error);
-    } finally {
-      setLoading(false);
+      setStatus("Aksi dikirim. Menunggu lawan...");
+    } catch (err) {
+      console.error("Gagal mengirim aksi:", err);
+      setStatus("Gagal mengirim aksi.");
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-white">
-      <h1 className="text-4xl font-bold mb-4">Arena PVP</h1>
+    <div className="flex flex-col items-center justify-center p-4 text-center">
+      <h1 className="text-3xl font-bold mb-4">Arena PVP</h1>
       <p className="mb-4">{status}</p>
 
-      <div className="flex justify-around w-full max-w-3xl">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold">Kamu</h2>
-          <HealthBar currentHP={player.hp || 0} maxHP={100} />
-          <p className="mt-2">{player.hp || 0} / 100</p>
+      <div className="grid grid-cols-2 gap-10 mb-6 w-full max-w-xl">
+        <div>
+          <h2 className="font-semibold mb-1">Kamu</h2>
+          <HealthBar currentHP={Number(player?.hp || 0)} maxHP={100} />
         </div>
-
-        <div className="text-center">
-          <h2 className="text-xl font-semibold">Lawan</h2>
-          <HealthBar currentHP={opponent.hp || 0} maxHP={100} />
-          <p className="mt-2">{opponent.hp || 0} / 100</p>
+        <div>
+          <h2 className="font-semibold mb-1">Lawan</h2>
+          <HealthBar currentHP={Number(opponent?.hp || 0)} maxHP={100} />
         </div>
       </div>
 
-      <ActionButtons
-        isPlayerTurn={isPlayerTurn}
-        onActionSelected={handleAction}
-        isLoading={loading}
-      />
+      {isTurn && player?.hp > 0 && opponent?.hp > 0 && (
+        <ActionButtons onAction={handleAction} />
+      )}
     </div>
   );
 };
