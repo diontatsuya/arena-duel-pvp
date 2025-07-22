@@ -1,63 +1,104 @@
 import { useEffect, useState } from "react";
-import { ethers } from "ethers";
 import { Link } from "react-router-dom";
+import { ethers } from "ethers";
+import { CONTRACT_ADDRESS } from "../../utils/constants";
+import { contractABI } from "../../utils/contractABI";
 
 const Navbar = () => {
-  const [walletAddress, setWalletAddress] = useState("");
+  const [address, setAddress] = useState(null);
+  const [status, setStatus] = useState("Belum terhubung");
+  const [player, setPlayer] = useState(null);
+  const [opponent, setOpponent] = useState(null);
+  const [lastAction, setLastAction] = useState(null);
+  const [opponentAction, setOpponentAction] = useState(null);
 
   const connectWallet = async () => {
-    if (window.ethereum) {
-      try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const accounts = await provider.send("eth_requestAccounts", []);
-        const signer = await provider.getSigner();
-        const message = "Sign in to Arena Duel PvP";
-        await signer.signMessage(message); // Signature to authenticate
-        setWalletAddress(accounts[0]);
-      } catch (error) {
-        console.error("Failed to connect wallet:", error);
+    try {
+      if (!window.ethereum) {
+        alert("MetaMask tidak ditemukan!");
+        return;
       }
-    } else {
-      alert("MetaMask tidak ditemukan!");
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await provider.send("eth_requestAccounts", []);
+      const signer = await provider.getSigner();
+      const userAddress = await signer.getAddress();
+
+      // Signature untuk Somnia
+      const message = "Sign in to Arena Duel on Somnia";
+      await signer.signMessage(message);
+
+      setAddress(userAddress);
+      setStatus("Terhubung");
+
+      // Load data PvP
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
+      const playerData = await contract.players(userAddress);
+      setPlayer(playerData);
+
+      if (playerData.opponent !== ethers.ZeroAddress) {
+        const opponentData = await contract.players(playerData.opponent);
+        setOpponent(opponentData);
+        setOpponentAction(opponentData.lastAction);
+      }
+
+      setLastAction(playerData.lastAction);
+    } catch (err) {
+      console.error("Gagal konek wallet:", err);
     }
   };
 
   useEffect(() => {
-    const checkWallet = async () => {
-      if (window.ethereum) {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const accounts = await provider.listAccounts();
-        if (accounts.length > 0) {
-          setWalletAddress(accounts[0]);
-        }
-      }
-    };
-    checkWallet();
+    if (window.ethereum && window.ethereum.selectedAddress) {
+      connectWallet(); // auto-reconnect
+    }
   }, []);
 
+  const shortenAddress = (addr) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+
+  const renderAction = (action) => {
+    if (!action) return "-";
+    const act = parseInt(action);
+    if (act === 1) return "Attack";
+    if (act === 2) return "Defend";
+    if (act === 3) return "Heal";
+    return "-";
+  };
+
   return (
-    <nav className="bg-gray-800 p-4 flex justify-between items-center">
-      <div className="text-white text-lg font-bold">Arena Duel</div>
-      <div className="flex gap-4">
-        <Link to="/" className="text-white hover:underline">
-          Home
+    <div className="w-full bg-gray-800 px-4 py-3 flex flex-col sm:flex-row items-center justify-between text-white">
+      <div className="flex items-center gap-6">
+        <Link to="/" className="text-xl font-bold text-yellow-400">
+          Arena Duel
         </Link>
-        <Link to="/arena-pvp" className="text-white hover:underline">
-          Arena PvP
-        </Link>
-        <Link to="/arena-pve" className="text-white hover:underline">
-          Arena PvE
-        </Link>
-        <button
-          onClick={connectWallet}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          {walletAddress
-            ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-            : "Connect Wallet"}
-        </button>
+        <Link to="/pvp" className="hover:text-yellow-300">Arena PvP</Link>
+        <Link to="/pve" className="hover:text-yellow-300">Arena PvE</Link>
       </div>
-    </nav>
+
+      <div className="mt-3 sm:mt-0 flex flex-col items-end">
+        {address ? (
+          <>
+            <p className="text-sm text-green-400">{shortenAddress(address)}</p>
+            <p className="text-xs text-gray-300">Status: {status}</p>
+            {player && (
+              <div className="mt-2 text-sm text-white">
+                <div><strong>Kamu:</strong> {shortenAddress(address)}</div>
+                <div>Aksi: {renderAction(lastAction)}</div>
+                <div className="mt-1"><strong>Lawan:</strong> {player.opponent !== ethers.ZeroAddress ? shortenAddress(player.opponent) : "-"}</div>
+                <div>Aksi: {renderAction(opponentAction)}</div>
+              </div>
+            )}
+          </>
+        ) : (
+          <button
+            onClick={connectWallet}
+            className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded"
+          >
+            Hubungkan Wallet
+          </button>
+        )}
+      </div>
+    </div>
   );
 };
 
