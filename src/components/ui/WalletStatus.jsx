@@ -1,42 +1,33 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import WalletStatus from "../components/ui/WalletStatus";
 
-const Home = () => {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
+const WalletStatus = ({ signer, provider }) => {
+  const [address, setAddress] = useState("");
+  const [balance, setBalance] = useState("");
 
-  const connectWallet = async () => {
-    if (window.ethereum) {
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!signer || !provider) return;
+
       try {
-        const ethProvider = new ethers.BrowserProvider(window.ethereum);
-        await ethProvider.send("eth_requestAccounts", []);
-        const signer = await ethProvider.getSigner();
-        setProvider(ethProvider);
-        setSigner(signer);
+        const addr = await signer.getAddress();
+        const bal = await provider.getBalance(addr);
+        setAddress(addr);
+        setBalance(ethers.formatEther(bal));
       } catch (error) {
-        console.error("Wallet connection failed:", error);
+        console.error("Error fetching wallet data:", error);
       }
-    } else {
-      alert("MetaMask not detected");
-    }
-  };
+    };
+
+    fetchData();
+  }, [signer, provider]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white">
-      <h1 className="text-4xl font-bold mb-6">Welcome to Arena Duel!</h1>
-      {!signer ? (
-        <button
-          onClick={connectWallet}
-          className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl text-white font-semibold transition"
-        >
-          Connect Wallet
-        </button>
-      ) : (
-        <WalletStatus signer={signer} provider={provider} />
-      )}
+    <div className="mt-6 p-4 bg-gray-800 rounded-xl w-full max-w-md text-center">
+      <p className="mb-2"><strong>Wallet Address:</strong> {address}</p>
+      <p><strong>STT Balance:</strong> {balance ? `${balance} STT` : "Loading..."}</p>
     </div>
   );
 };
 
-export default Home;
+export default WalletStatus;
