@@ -1,63 +1,143 @@
-import { useState, useEffect } from "react";
-import HealthBar from "../components/ui/HealthBar";
-import { getRandomAIAction, processTurn } from "../gameLogic/pveLogic";
+import { useEffect, useState } from "react";
+import HealthBar from "../components/game/HealthBar";
 
-const GamePVE = () => {
-  const [playerHP, setPlayerHP] = useState(100);
-  const [aiHP, setAIHP] = useState(100);
-  const [turn, setTurn] = useState("player"); // "player" or "ai"
+const MAX_HP = 100;
+
+const getRandomAction = () => {
+  const actions = ["attack", "defend", "heal"];
+  return actions[Math.floor(Math.random() * actions.length)];
+};
+
+const ArenaPVE = () => {
+  const [playerHP, setPlayerHP] = useState(MAX_HP);
+  const [enemyHP, setEnemyHP] = useState(MAX_HP);
+  const [playerTurn, setPlayerTurn] = useState(true);
   const [log, setLog] = useState([]);
-  const [disabled, setDisabled] = useState(false);
 
-  const handlePlayerAction = (action) => {
-    if (turn !== "player" || disabled) return;
+  const handleAction = (action) => {
+    if (!playerTurn || playerHP <= 0 || enemyHP <= 0) return;
 
-    setDisabled(true);
+    let logEntry = `Kamu memilih ${action}`;
+    let newEnemyHP = enemyHP;
+    let newPlayerHP = playerHP;
 
-    const aiAction = getRandomAIAction();
-    const result = processTurn(action, aiAction, playerHP, aiHP);
-
-    setPlayerHP(result.playerHP);
-    setAIHP(result.aiHP);
-    setLog((prev) => [...prev, `Player: ${action}`, `AI: ${aiAction}`]);
+    if (action === "attack") {
+      newEnemyHP -= 20;
+      logEntry += ` dan menyerang musuh (-20 HP)`;
+    } else if (action === "defend") {
+      logEntry += ` dan bertahan (kurangi damage musuh nanti)`;
+    } else if (action === "heal") {
+      newPlayerHP = Math.min(MAX_HP, playerHP + 15);
+      logEntry += ` dan menyembuhkan diri (+15 HP)`;
+    }
 
     setTimeout(() => {
-      setTurn("player");
-      setDisabled(false);
+      enemyTurn(action === "defend", newPlayerHP, newEnemyHP, logEntry);
+    }, 1000);
+
+    setEnemyHP(newEnemyHP);
+    setPlayerHP(newPlayerHP);
+    setPlayerTurn(false);
+    setLog((prev) => [...prev, logEntry]);
+  };
+
+  const enemyTurn = (playerDefending, currentPlayerHP, currentEnemyHP, previousLog) => {
+    if (currentPlayerHP <= 0 || currentEnemyHP <= 0) return;
+
+    const action = getRandomAction();
+    let logEntry = `Musuh memilih ${action}`;
+    let newPlayerHP = currentPlayerHP;
+    let newEnemyHP = currentEnemyHP;
+
+    if (action === "attack") {
+      const damage = playerDefending ? 10 : 20;
+      newPlayerHP -= damage;
+      logEntry += ` dan menyerangmu (-${damage} HP)`;
+    } else if (action === "defend") {
+      logEntry += ` dan bertahan`;
+    } else if (action === "heal") {
+      newEnemyHP = Math.min(MAX_HP, currentEnemyHP + 15);
+      logEntry += ` dan menyembuhkan diri (+15 HP)`;
+    }
+
+    setTimeout(() => {
+      setPlayerHP(newPlayerHP);
+      setEnemyHP(newEnemyHP);
+      setPlayerTurn(true);
+      setLog((prev) => [...prev, logEntry]);
     }, 1000);
   };
 
-  useEffect(() => {
-    if (playerHP <= 0 || aiHP <= 0) {
-      setDisabled(true);
-      setLog((prev) => [...prev, playerHP <= 0 ? "You Lost!" : "You Win!"]);
-    }
-  }, [playerHP, aiHP]);
+  const resetGame = () => {
+    setPlayerHP(MAX_HP);
+    setEnemyHP(MAX_HP);
+    setPlayerTurn(true);
+    setLog([]);
+  };
 
   return (
-    <div className="max-w-xl mx-auto text-center">
-      <h2 className="text-2xl font-bold mb-4">PvE Battle</h2>
+    <div className="p-4 text-center">
+      <h2 className="text-2xl font-bold mb-4">Mode PvE - Lawan AI</h2>
 
-      <div className="mb-4">
-        <p>Player HP</p>
-        <HealthBar hp={playerHP} />
-        <p>AI HP</p>
-        <HealthBar hp={aiHP} />
+      <div className="flex justify-around items-center mb-6">
+        <div>
+          <h3 className="font-semibold">Kamu</h3>
+          <HealthBar hp={playerHP} />
+        </div>
+        <div>
+          <h3 className="font-semibold">Musuh AI</h3>
+          <HealthBar hp={enemyHP} />
+        </div>
       </div>
 
-      <div className="space-x-4 mb-4">
-        <button onClick={() => handlePlayerAction("attack")} disabled={disabled} className="btn">Attack</button>
-        <button onClick={() => handlePlayerAction("defend")} disabled={disabled} className="btn">Defend</button>
-        <button onClick={() => handlePlayerAction("heal")} disabled={disabled} className="btn">Heal</button>
-      </div>
+      {playerHP <= 0 || enemyHP <= 0 ? (
+        <div className="mb-4">
+          <h3 className="text-xl font-bold">
+            {playerHP <= 0 ? "Kamu kalah!" : "Kamu menang!"}
+          </h3>
+          <button
+            className="mt-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded"
+            onClick={resetGame}
+          >
+            Coba Lagi
+          </button>
+        </div>
+      ) : (
+        <div className="space-x-2 mb-4">
+          <button
+            className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+            onClick={() => handleAction("attack")}
+            disabled={!playerTurn}
+          >
+            Serang
+          </button>
+          <button
+            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+            onClick={() => handleAction("defend")}
+            disabled={!playerTurn}
+          >
+            Bertahan
+          </button>
+          <button
+            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
+            onClick={() => handleAction("heal")}
+            disabled={!playerTurn}
+          >
+            Heal
+          </button>
+        </div>
+      )}
 
-      <div className="bg-gray-800 p-2 rounded text-left h-40 overflow-y-auto text-sm">
-        {log.map((entry, i) => (
-          <p key={i}>{entry}</p>
-        ))}
+      <div className="text-left max-w-md mx-auto bg-black/30 p-4 rounded h-60 overflow-y-auto">
+        <h4 className="font-semibold mb-2">Log Pertarungan</h4>
+        <ul className="text-sm space-y-1">
+          {log.map((entry, index) => (
+            <li key={index} className="text-gray-300">• {entry}</li>
+          ))}
+        </ul>
       </div>
     </div>
   );
 };
 
-export default GamePVE;
+export default ArenaPVE;
