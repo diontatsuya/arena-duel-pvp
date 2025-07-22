@@ -6,107 +6,126 @@ import { CONTRACT_ADDRESS } from "../utils/constants";
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [signerAddress, setSignerAddress] = useState(null);
   const [contract, setContract] = useState(null);
-  const [player, setPlayer] = useState({ address: "", hp: 100, isTurn: false });
-  const [opponent, setOpponent] = useState({ address: "", hp: 100 });
+  const [player, setPlayer] = useState({});
+  const [opponent, setOpponent] = useState({});
+  const [isWaiting, setIsWaiting] = useState(true);
+  const [actionInProgress, setActionInProgress] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [highlight, setHighlight] = useState(""); // for animation
 
   useEffect(() => {
     const init = async () => {
       if (window.ethereum) {
-        const _provider = new ethers.BrowserProvider(window.ethereum);
-        const _signer = await _provider.getSigner();
-        const _address = await _signer.getAddress();
-        const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
+        const tempProvider = new ethers.BrowserProvider(window.ethereum);
+        const tempSigner = await tempProvider.getSigner();
+        const tempContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, tempSigner);
 
-        setProvider(_provider);
-        setSigner(_signer);
-        setSignerAddress(_address);
-        setContract(_contract);
+        setProvider(tempProvider);
+        setSigner(tempSigner);
+        setContract(tempContract);
       }
     };
-
     init();
   }, []);
 
   useEffect(() => {
-    if (!contract || !signerAddress) return;
+    if (!contract || !signer) return;
+    const fetchStatus = async () => {
+      const address = await signer.getAddress();
+      const data = await contract.players(address);
+      const opponentData = await contract.players(data.opponent);
 
-    const joinGame = async () => {
-      try {
-        const playerData = await contract.players(signerAddress);
-        if (playerData.opponent === ethers.ZeroAddress) {
-          const tx = await contract.joinGame();
-          await tx.wait();
-        }
-      } catch (error) {
-        console.error("Gagal join game:", error);
-      }
+      setPlayer({ address, ...data });
+      setOpponent({ address: data.opponent, ...opponentData });
+
+      setIsWaiting(data.opponent === ethers.ZeroAddress);
     };
 
-    joinGame();
-  }, [contract, signerAddress]);
+    fetchStatus();
 
-  useEffect(() => {
-    if (!contract || !signerAddress) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const playerData = await contract.players(signerAddress);
-        const opponentAddress = playerData.opponent;
-        const isTurn = playerData.isTurn;
-        const hp = playerData.hp;
-
-        setPlayer((prev) => ({
-          ...prev,
-          address: signerAddress,
-          hp: hp.toNumber(),
-          isTurn,
-        }));
-
-        if (opponentAddress !== ethers.ZeroAddress) {
-          const opponentData = await contract.players(opponentAddress);
-          setOpponent((prev) => ({
-            ...prev,
-            address: opponentAddress,
-            hp: opponentData.hp.toNumber(),
-          }));
-        }
-      } catch (error) {
-        console.error("Gagal polling data PvP:", error);
-      }
-    }, 3000);
-
+    const interval = setInterval(fetchStatus, 3000);
     return () => clearInterval(interval);
-  }, [contract, signerAddress]);
+  }, [contract, signer]);
+
+  const handleAction = async (actionCode) => {
+    if (!contract || actionInProgress || isWaiting || !player.isTurn) return;
+    setActionInProgress(true);
+    try {
+      const tx = await contract.takeAction(actionCode);
+      setFeedback("Menunggu konfirmasi aksi...");
+      await tx.wait();
+      setFeedback("Aksi berhasil!");
+      animateAction(actionCode);
+    } catch (err) {
+      console.error(err);
+      setFeedback("Gagal melakukan aksi.");
+    }
+    setActionInProgress(false);
+  };
+
+  const animateAction = (actionCode) => {
+    let color = "";
+    if (actionCode === 1) color = "attack";
+    else if (actionCode === 2) color = "defend";
+    else if (actionCode === 3) color = "heal";
+
+    setHighlight(color);
+    setTimeout(() => setHighlight(""), 400);
+  };
+
+  const renderFeedback = () => {
+    if (isWaiting) return "Menunggu lawan bergabung...";
+    if (!player.isTurn) return "Menunggu giliran lawan...";
+    return "Giliranmu! Pilih aksi.";
+  };
 
   return (
-    <div className="p-4 text-center">
-      <h1 className="text-3xl font-bold mb-6">Arena PVP</h1>
+    <div className={`min-h-screen px-4 py-6 transition-all duration-300 ${highlight === "attack" ? "bg-red-900" : highlight === "defend" ? "bg-blue-900" : highlight === "heal" ? "bg-green-900" : "bg-gray-900"}`}>
+      <h1 className="text-3xl font-bold text-center mb-6">Arena PVP</h1>
+      <p className="text-center text-lg mb-4">{renderFeedback()}</p>
 
-      {opponent.address === "" || opponent.address === ethers.ZeroAddress ? (
-        <p className="text-yellow-400 text-lg">Menunggu lawan bergabung...</p>
-      ) : (
-        <>
-          <div className="mb-6 grid grid-cols-2 gap-4 items-center justify-center">
-            <div>
-              <p className="font-semibold text-green-400">Kamu</p>
-              <p className="break-words text-xs">{player.address}</p>
-              <p className="text-2xl mt-2">{player.hp} / 100</p>
-            </div>
-            <div>
-              <p className="font-semibold text-red-400">Lawan</p>
-              <p className="break-words text-xs">{opponent.address}</p>
-              <p className="text-2xl mt-2">{opponent.hp} / 100</p>
-            </div>
-          </div>
+      <div className="grid grid-cols-2 gap-4 mb-6 text-center">
+        <div>
+          <h2 className="text-xl font-semibold">Kamu</h2>
+          <p className="text-sm break-words">{player.address}</p>
+          <p className="text-2xl mt-2">{Number(player.hp || 0)} / 100</p>
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold">Lawan</h2>
+          <p className="text-sm break-words">{opponent.address}</p>
+          <p className="text-2xl mt-2">{Number(opponent.hp || 0)} / 100</p>
+        </div>
+      </div>
 
-          {player.isTurn ? (
-            <p className="text-blue-400">Giliran kamu bermain!</p>
-          ) : (
-            <p className="text-gray-400">Menunggu giliran lawan...</p>
-          )}
-        </>
+      {!isWaiting && player.isTurn && (
+        <div className="flex justify-center gap-4">
+          <button
+            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl transition disabled:opacity-50"
+            onClick={() => handleAction(1)}
+            disabled={actionInProgress}
+          >
+            Attack
+          </button>
+          <button
+            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl transition disabled:opacity-50"
+            onClick={() => handleAction(2)}
+            disabled={actionInProgress}
+          >
+            Defend
+          </button>
+          <button
+            className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-xl transition disabled:opacity-50"
+            onClick={() => handleAction(3)}
+            disabled={actionInProgress}
+          >
+            Heal
+          </button>
+        </div>
+      )}
+
+      {feedback && (
+        <p className="text-center text-yellow-400 mt-4">{feedback}</p>
       )}
     </div>
   );
