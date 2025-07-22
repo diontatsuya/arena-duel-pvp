@@ -1,48 +1,27 @@
-// src/components/ui/Navbar.jsx
-import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { ethers } from "ethers";
+const connectWallet = async () => {
+  try {
+    let ethereum = window.ethereum;
 
-const Navbar = () => {
-  const [account, setAccount] = useState(null);
-
-  const connectWallet = async () => {
-    if (window.ethereum) {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      setAccount(address);
+    // Fallback untuk OKX Wallet jika tidak tersedia
+    if (!ethereum && window.okxwallet) {
+      ethereum = window.okxwallet;
     }
-  };
 
-  useEffect(() => {
-    if (window.ethereum) {
-      window.ethereum.on("accountsChanged", () => window.location.reload());
+    if (!ethereum) {
+      alert("Wallet tidak ditemukan. Gunakan browser yang mendukung Ethereum seperti MetaMask atau OKX.");
+      return;
     }
-  }, []);
 
-  return (
-    <nav className="bg-gray-800 p-4 flex justify-between items-center">
-      <div className="text-white text-xl font-bold">Arena Duel</div>
-      <div className="space-x-4">
-        <Link to="/" className="text-white hover:text-gray-300">Home</Link>
-        <Link to="/arena-pvp" className="text-white hover:text-gray-300">Arena PvP</Link>
-        <Link to="/arena-pve" className="text-white hover:text-gray-300">Arena PvE</Link>
-      </div>
-      <div>
-        {account ? (
-          <span className="text-green-400">{account.slice(0, 6)}...{account.slice(-4)}</span>
-        ) : (
-          <button
-            onClick={connectWallet}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Hubungkan Wallet
-          </button>
-        )}
-      </div>
-    </nav>
-  );
+    const provider = new ethers.BrowserProvider(ethereum);
+    const signer = await provider.getSigner();
+    const address = await signer.getAddress();
+
+    setProvider(provider);
+    setSigner(signer);
+    setWalletAddress(address);
+    setIsConnected(true);
+  } catch (err) {
+    console.error("Gagal menghubungkan wallet:", err);
+    alert("Gagal menghubungkan wallet.");
+  }
 };
-
-export default Navbar;
