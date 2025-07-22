@@ -1,131 +1,115 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import HealthBar from "../components/ui/HealthBar";
-import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
+import { contractABI } from "../utils/contractABI";
+import HealthBar from "../components/ui/HealthBar";
 
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
-  const [playerAddress, setPlayerAddress] = useState("");
-  const [playerHP, setPlayerHP] = useState(0);
-  const [opponentHP, setOpponentHP] = useState(0);
-  const [opponentAddress, setOpponentAddress] = useState("");
-  const [isPlayerTurn, setIsPlayerTurn] = useState(false);
-  const [status, setStatus] = useState("Connecting...");
+  const [player, setPlayer] = useState(null);
+  const [opponent, setOpponent] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMyTurn, setIsMyTurn] = useState(false);
+  const [lastAction, setLastAction] = useState(null);
 
   useEffect(() => {
     const init = async () => {
-      if (typeof window.ethereum !== "undefined") {
-        const newProvider = new ethers.BrowserProvider(window.ethereum);
-        const newSigner = await newProvider.getSigner();
-        const userAddress = await newSigner.getAddress();
-        const newContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, newSigner);
+      if (window.ethereum) {
+        const prov = new ethers.BrowserProvider(window.ethereum);
+        const signer = await prov.getSigner();
+        const address = await signer.getAddress();
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
 
-        setProvider(newProvider);
-        setSigner(newSigner);
-        setContract(newContract);
-        setPlayerAddress(userAddress);
+        const data = await contract.players(address);
 
-        const playerData = await newContract.players(userAddress);
-
-        if (playerData.opponent === ethers.ZeroAddress) {
-          setStatus("Menunggu lawan bergabung...");
-        } else {
-          setOpponentAddress(playerData.opponent);
-          setIsPlayerTurn(playerData.isTurn);
-          setStatus("Lawan ditemukan!");
-          await updateHPs(newContract, userAddress, playerData.opponent);
+        if (data.opponent !== ethers.ZeroAddress) {
+          const opponentData = await contract.players(data.opponent);
+          setOpponent({
+            address: data.opponent,
+            hp: opponentData.hp,
+            lastAction: opponentData.lastAction,
+          });
         }
 
-        // Listen to Match event
-        newContract.on("Matched", async (p1, p2) => {
-          if (userAddress === p1 || userAddress === p2) {
-            const updatedData = await newContract.players(userAddress);
-            setOpponentAddress(updatedData.opponent);
-            setIsPlayerTurn(updatedData.isTurn);
-            setStatus("Lawan ditemukan!");
-            await updateHPs(newContract, userAddress, updatedData.opponent);
-          }
-        });
-
-        // Listen to TurnChanged event
-        newContract.on("TurnChanged", (currentPlayer) => {
-          setIsPlayerTurn(currentPlayer === userAddress);
-        });
-
-        // Listen to HP updates
-        newContract.on("ActionPerformed", async (attacker, defender, action) => {
-          if (
-            attacker === userAddress ||
-            defender === userAddress
-          ) {
-            await updateHPs(newContract, userAddress, opponentAddress);
-          }
-        });
+        setPlayer({ address, hp: data.hp });
+        setIsMyTurn(data.isTurn);
+        setLastAction(data.lastAction);
+        setProvider(prov);
+        setSigner(signer);
+        setContract(contract);
+        setIsLoading(false);
       }
     };
 
     init();
   }, []);
 
-  const updateHPs = async (contract, playerAddr, opponentAddr) => {
-    const player = await contract.players(playerAddr);
-    const opponent = await contract.players(opponentAddr);
-    setPlayerHP(player.hp);
-    setOpponentHP(opponent.hp);
-  };
-
-  const handleAction = async (actionCode) => {
+  const handleAction = async (action) => {
     if (!contract) return;
     try {
-      const tx = await contract.performAction(actionCode);
-      setStatus("Menjalankan aksi...");
+      const tx = await contract.performAction(action);
       await tx.wait();
-      setStatus("Aksi selesai!");
+      window.location.reload(); // Untuk menyegarkan status setelah aksi
     } catch (err) {
-      console.error(err);
-      setStatus("Aksi gagal!");
+      console.error("Action failed:", err);
     }
   };
 
+  if (isLoading) return <div className="text-center mt-10">Loading arena...</div>;
+
+  if (!opponent) {
+    return <div className="text-center mt-10">Menunggu lawan bergabung...</div>;
+  }
+
   return (
-    <div className="p-6 max-w-xl mx-auto text-white">
-      <h1 className="text-3xl font-bold mb-4">Arena PVP</h1>
-      <p className="mb-4">{status}</p>
+    <div className="text-center mt-10">
+      <h2 className="text-3xl font-bold mb-6">🔥 Arena PVP 🔥</h2>
 
-      {opponentAddress && (
-        <>
-          <HealthBar name="Kamu" hp={playerHP} />
-          <HealthBar name="Lawan" hp={opponentHP} />
-          <p className="mb-4">
-            {isPlayerTurn ? "Giliranmu!" : "Menunggu giliran lawan..."}
+      <div className="flex justify-center gap-12 items-center mb-6">
+        <div>
+          <h3 className="font-semibold">💥 Kamu</h3>
+          <HealthBar hp={player.hp} />
+        </div>
+        <div>
+          <h3 className="font-semibold">🧠 Lawan</h3>
+          <HealthBar hp={opponent.hp} />
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <p className="text-lg">
+          {isMyTurn ? "🎯 Giliran kamu!" : "⏳ Tunggu giliran lawan..."}
+        </p>
+        {opponent.lastAction !== 0 && (
+          <p className="text-sm text-gray-400 mt-1">
+            Lawan melakukan: {["None", "Attack", "Defend", "Heal"][opponent.lastAction]}
           </p>
+        )}
+      </div>
 
-          {isPlayerTurn && (
-            <div className="flex gap-4">
-              <button
-                className="bg-red-500 px-4 py-2 rounded hover:bg-red-600"
-                onClick={() => handleAction(1)}
-              >
-                Attack
-              </button>
-              <button
-                className="bg-blue-500 px-4 py-2 rounded hover:bg-blue-600"
-                onClick={() => handleAction(2)}
-              >
-                Defend
-              </button>
-              <button
-                className="bg-green-500 px-4 py-2 rounded hover:bg-green-600"
-                onClick={() => handleAction(3)}
-              >
-                Heal
-              </button>
-            </div>
-          )}
-        </>
+      {isMyTurn && (
+        <div className="flex justify-center gap-4 mt-4">
+          <button
+            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg"
+            onClick={() => handleAction(1)}
+          >
+            Attack
+          </button>
+          <button
+            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg"
+            onClick={() => handleAction(2)}
+          >
+            Defend
+          </button>
+          <button
+            className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg"
+            onClick={() => handleAction(3)}
+          >
+            Heal
+          </button>
+        </div>
       )}
     </div>
   );
