@@ -1,87 +1,110 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import { contractABI } from "../utils/contractABI";
-import { CONTRACT_ADDRESS } from "../utils/constants";
-import HealthBar from "../components/ui/HealthBar";
 import ActionButtons from "../components/ui/ActionButton";
+import { CONTRACT_ADDRESS } from "../utils/constants";
+import { contractABI } from "../utils/contractABI";
 
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
-  const [player, setPlayer] = useState(null);
-  const [opponent, setOpponent] = useState(null);
-  const [address, setAddress] = useState(null);
+  const [playerAddress, setPlayerAddress] = useState("");
+  const [opponentAddress, setOpponentAddress] = useState("");
+  const [playerHp, setPlayerHp] = useState(100);
+  const [opponentHp, setOpponentHp] = useState(100);
+  const [isPlayerTurn, setIsPlayerTurn] = useState(false);
+  const [lastAction, setLastAction] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const init = async () => {
       if (window.ethereum) {
-        const _provider = new ethers.BrowserProvider(window.ethereum);
-        const _signer = await _provider.getSigner();
-        const _address = await _signer.getAddress();
-        const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
+        const newProvider = new ethers.providers.Web3Provider(window.ethereum);
+        setProvider(newProvider);
+        const newSigner = newProvider.getSigner();
+        setSigner(newSigner);
+        const newContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, newSigner);
+        setContract(newContract);
 
-        setProvider(_provider);
-        setSigner(_signer);
-        setContract(_contract);
-        setAddress(_address);
+        const address = await newSigner.getAddress();
+        setPlayerAddress(address);
       }
     };
     init();
   }, []);
 
   useEffect(() => {
-    const fetchPlayers = async () => {
-      if (!contract || !address) return;
-      try {
-        const playerData = await contract.players(address);
-        const opponentAddress = playerData.opponent;
+    if (contract && playerAddress) {
+      fetchGameState();
+    }
+  }, [contract, playerAddress]);
 
-        let opponentData = null;
-        if (opponentAddress !== ethers.ZeroAddress) {
-          opponentData = await contract.players(opponentAddress);
-        }
+  const fetchGameState = async () => {
+    try {
+      const playerData = await contract.players(playerAddress);
 
-        setPlayer({ ...playerData, address });
-        setOpponent({ ...opponentData, address: opponentAddress });
-      } catch (error) {
-        console.error("Error fetching players:", error);
+      const opponentAddr = playerData.opponent;
+      setOpponentAddress(opponentAddr);
+      setPlayerHp(playerData.hp?.toNumber() || 0);
+      setIsPlayerTurn(playerData.isTurn);
+      setLastAction(playerData.lastAction);
+
+      if (opponentAddr !== ethers.constants.AddressZero) {
+        const opponentData = await contract.players(opponentAddr);
+        setOpponentHp(opponentData.hp?.toNumber() || 0);
+      } else {
+        setOpponentHp(0);
       }
-    };
 
-    fetchPlayers();
+      setLoading(false);
+    } catch (err) {
+      console.error("Failed to fetch game state:", err);
+    }
+  };
 
-    const interval = setInterval(fetchPlayers, 2000);
-    return () => clearInterval(interval);
-  }, [contract, address]);
-
-  const isMatched = player && player.opponent !== ethers.ZeroAddress;
-  const isPlayerTurn = player?.isTurn;
+  const handleAction = async (action) => {
+    if (!contract || !signer) return;
+    try {
+      const tx = await contract.takeAction(action);
+      await tx.wait();
+      fetchGameState(); // refresh state after action
+    } catch (err) {
+      console.error("Action failed:", err);
+    }
+  };
 
   return (
-    <div className="p-4 max-w-xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-center">Arena PVP</h1>
+    <div className="p-6 max-w-2xl mx-auto text-center bg-gray-800 rounded-xl shadow-lg mt-10">
+      <h1 className="text-3xl font-bold mb-4">Arena PVP</h1>
 
-      {!isMatched ? (
-        <p className="text-center text-yellow-400">Menunggu lawan bergabung...</p>
+      {loading ? (
+        <p className="animate-pulse text-yellow-300">Menunggu lawan bergabung...</p>
       ) : (
         <>
-          <div className="bg-gray-800 p-4 rounded-xl shadow-md mb-4">
-            <h2 className="text-lg font-bold mb-2">Kamu</h2>
-            <p className="text-sm break-all">{player.address}</p>
-            <HealthBar hp={Number(player.hp)} />
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold">Kamu</h2>
+            <p className="text-sm break-all text-green-300">{playerAddress}</p>
+            <p className="text-lg font-bold">{playerHp} / 100</p>
           </div>
 
-          <div className="bg-gray-800 p-4 rounded-xl shadow-md mb-4">
-            <h2 className="text-lg font-bold mb-2">Lawan</h2>
-            <p className="text-sm break-all">{opponent?.address}</p>
-            <HealthBar hp={Number(opponent?.hp || 0)} />
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold">Lawan</h2>
+            <p className="text-sm break-all text-red-300">{opponentAddress}</p>
+            <p className="text-lg font-bold">{opponentHp} / 100</p>
           </div>
 
-          {isPlayerTurn ? (
-            <ActionButtons contract={contract} address={address} />
+          {opponentAddress === ethers.constants.AddressZero ? (
+            <p className="text-yellow-300 animate-pulse">Menunggu lawan bergabung...</p>
+          ) : isPlayerTurn ? (
+            <>
+              <p className="text-green-400 mb-2">Giliran kamu!</p>
+              <ActionButtons onAction={handleAction} disabled={false} />
+            </>
           ) : (
-            <p className="text-center text-blue-300 mt-4">Menunggu giliran lawan...</p>
+            <>
+              <p className="text-red-400 mb-2">Menunggu giliran lawan...</p>
+              <ActionButtons onAction={() => {}} disabled={true} />
+            </>
           )}
         </>
       )}
