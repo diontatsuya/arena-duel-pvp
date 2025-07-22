@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
-import HealthBar from "../components/HealthBar";
+import HealthBar from "../components/ui/HealthBar";
 
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
