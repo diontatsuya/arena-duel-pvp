@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import HealthBar from "../components/ui/HealthBar";
-import ActionButtons from "../components/ui/ActionButton";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
+import HealthBar from "../components/ui/HealthBar";
+import ActionButtons from "../components/ui/ActionButton";
 
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
@@ -11,102 +11,79 @@ const ArenaPVP = () => {
   const [contract, setContract] = useState(null);
   const [player, setPlayer] = useState(null);
   const [opponent, setOpponent] = useState(null);
-  const [isTurn, setIsTurn] = useState(false);
-  const [status, setStatus] = useState("Menunggu lawan bergabung...");
+  const [address, setAddress] = useState(null);
 
-  // Setup ethers
   useEffect(() => {
     const init = async () => {
       if (window.ethereum) {
         const _provider = new ethers.BrowserProvider(window.ethereum);
         const _signer = await _provider.getSigner();
+        const _address = await _signer.getAddress();
         const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
 
         setProvider(_provider);
         setSigner(_signer);
         setContract(_contract);
-
-        const address = await _signer.getAddress();
-        const playerData = await _contract.players(address);
-
-        // Jika sudah punya lawan
-        if (playerData.opponent !== ethers.ZeroAddress) {
-          const opponentData = await _contract.players(playerData.opponent);
-          setPlayer({ ...playerData, address });
-          setOpponent({ ...opponentData, address: playerData.opponent });
-          setIsTurn(playerData.isTurn);
-          setStatus("Pertarungan dimulai!");
-        } else {
-          setPlayer({ ...playerData, address });
-          setStatus("Menunggu lawan bergabung...");
-        }
-
-        // Event listener
-        _contract.on("Matched", (p1, p2) => {
-          if (p1 === address || p2 === address) {
-            window.location.reload(); // refresh agar data player & lawan terbaru
-          }
-        });
-
-        _contract.on("ActionTaken", async (playerAddr) => {
-          if (playerAddr === address || playerAddr === playerData.opponent) {
-            const updatedPlayer = await _contract.players(address);
-            const updatedOpponent = await _contract.players(playerData.opponent);
-
-            setPlayer({ ...updatedPlayer, address });
-            setOpponent({ ...updatedOpponent, address: playerData.opponent });
-            setIsTurn(updatedPlayer.isTurn);
-
-            // Update status
-            if (updatedPlayer.hp === 0) {
-              setStatus("Kamu kalah!");
-            } else if (updatedOpponent.hp === 0) {
-              setStatus("Kamu menang!");
-            } else if (updatedPlayer.isTurn) {
-              setStatus("Giliran kamu!");
-            } else {
-              setStatus("Menunggu giliran lawan...");
-            }
-          }
-        });
+        setAddress(_address);
       }
     };
-
     init();
   }, []);
 
-  const handleAction = async (actionIndex) => {
-    if (!contract || !isTurn) return;
+  useEffect(() => {
+    const fetchPlayers = async () => {
+      if (!contract || !address) return;
+      try {
+        const playerData = await contract.players(address);
+        const opponentAddress = playerData.opponent;
 
-    try {
-      const tx = await contract.takeAction(actionIndex);
-      setStatus("Menunggu konfirmasi transaksi...");
-      await tx.wait();
-      setStatus("Aksi dikirim. Menunggu lawan...");
-    } catch (err) {
-      console.error("Gagal mengirim aksi:", err);
-      setStatus("Gagal mengirim aksi.");
-    }
-  };
+        let opponentData = null;
+        if (opponentAddress !== ethers.ZeroAddress) {
+          opponentData = await contract.players(opponentAddress);
+        }
+
+        setPlayer({ ...playerData, address });
+        setOpponent({ ...opponentData, address: opponentAddress });
+      } catch (error) {
+        console.error("Error fetching players:", error);
+      }
+    };
+
+    fetchPlayers();
+
+    const interval = setInterval(fetchPlayers, 2000);
+    return () => clearInterval(interval);
+  }, [contract, address]);
+
+  const isMatched = player && player.opponent !== ethers.ZeroAddress;
+  const isPlayerTurn = player?.isTurn;
 
   return (
-    <div className="flex flex-col items-center justify-center p-4 text-center">
-      <h1 className="text-3xl font-bold mb-4">Arena PVP</h1>
-      <p className="mb-4">{status}</p>
+    <div className="p-4 max-w-xl mx-auto">
+      <h1 className="text-3xl font-bold mb-6 text-center">Arena PVP</h1>
 
-      <div className="grid grid-cols-2 gap-10 mb-6 w-full max-w-xl">
-        <div>
-          <h2 className="font-semibold mb-1">Kamu</h2>
-          <HealthBar currentHP={Number(player?.hp || 0)} maxHP={100} />
-        </div>
-        <div>
-          <h2 className="font-semibold mb-1">Lawan</h2>
-          <HealthBar currentHP={Number(opponent?.hp || 0)} maxHP={100} />
-        </div>
-      </div>
+      {!isMatched ? (
+        <p className="text-center text-yellow-400">Menunggu lawan bergabung...</p>
+      ) : (
+        <>
+          <div className="bg-gray-800 p-4 rounded-xl shadow-md mb-4">
+            <h2 className="text-lg font-bold mb-2">Kamu</h2>
+            <p className="text-sm break-all">{player.address}</p>
+            <HealthBar hp={Number(player.hp)} />
+          </div>
 
-      {isTurn && player?.hp > 0 && opponent?.hp > 0 && (
-        <ActionButtons onAction={handleAction} />
+          <div className="bg-gray-800 p-4 rounded-xl shadow-md mb-4">
+            <h2 className="text-lg font-bold mb-2">Lawan</h2>
+            <p className="text-sm break-all">{opponent?.address}</p>
+            <HealthBar hp={Number(opponent?.hp || 0)} />
+          </div>
+
+          {isPlayerTurn ? (
+            <ActionButtons contract={contract} address={address} />
+          ) : (
+            <p className="text-center text-blue-300 mt-4">Menunggu giliran lawan...</p>
+          )}
+        </>
       )}
     </div>
   );
