@@ -1,149 +1,121 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
+import HealthBar from "../components/game/HealthBar";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
 
 const ArenaPVP = () => {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
-  const [contract, setContract] = useState(null);
-  const [account, setAccount] = useState(null);
+  const [walletAddress, setWalletAddress] = useState("");
   const [status, setStatus] = useState("Belum terhubung");
   const [player, setPlayer] = useState(null);
   const [opponent, setOpponent] = useState(null);
-  const [actionInProgress, setActionInProgress] = useState(false);
+  const [action, setAction] = useState("");
+  const [isWaiting, setIsWaiting] = useState(false);
+  const [provider, setProvider] = useState(null);
+  const [contract, setContract] = useState(null);
 
-  useEffect(() => {
-    const init = async () => {
-      if (window.ethereum) {
-        const newProvider = new ethers.providers.Web3Provider(window.ethereum);
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        const newSigner = newProvider.getSigner();
-        const address = await newSigner.getAddress();
-
-        const newContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, newSigner);
-
-        setProvider(newProvider);
-        setSigner(newSigner);
-        setContract(newContract);
-        setAccount(address);
+  const connectWallet = async () => {
+    if (window.ethereum) {
+      try {
+        const accs = await window.ethereum.request({ method: "eth_requestAccounts" });
+        const address = accs[0];
+        setWalletAddress(address);
         setStatus("Terhubung");
 
-        fetchGameStatus(newContract, address);
-      }
-    };
+        const prov = new ethers.BrowserProvider(window.ethereum);
+        const signer = await prov.getSigner();
+        const instance = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
 
-    init();
-  }, []);
-
-  const fetchGameStatus = async (contract, address) => {
-    try {
-      const playerData = await contract.players(address);
-      if (playerData.opponent !== ethers.constants.AddressZero) {
-        const opponentData = await contract.players(playerData.opponent);
-        setPlayer(playerData);
-        setOpponent(opponentData);
-      } else {
-        setPlayer(playerData);
-        setOpponent(null);
+        setProvider(prov);
+        setContract(instance);
+      } catch (error) {
+        console.error("Wallet connection error:", error);
+        setStatus("Gagal terhubung");
       }
-    } catch (error) {
-      console.error("Gagal mengambil status:", error);
+    } else {
+      setStatus("Wallet tidak ditemukan");
     }
   };
 
   const joinMatch = async () => {
-    if (!contract || !signer) return;
+    if (!contract) return;
     try {
       const tx = await contract.joinMatch();
-      setActionInProgress(true);
+      setIsWaiting(true);
       await tx.wait();
-      fetchGameStatus(contract, account);
+      setIsWaiting(false);
     } catch (err) {
-      console.error("Gagal gabung match:", err);
-    } finally {
-      setActionInProgress(false);
+      console.error("Gabung match gagal:", err);
     }
   };
 
-  const performAction = async (actionType) => {
-    if (!contract || !signer || !player?.isTurn) return;
+  const fetchPlayerData = async () => {
+    if (!contract || !walletAddress) return;
     try {
-      let tx;
-      if (actionType === "attack") {
-        tx = await contract.attack();
-      } else if (actionType === "defend") {
-        tx = await contract.defend();
-      } else if (actionType === "heal") {
-        tx = await contract.heal();
+      const p = await contract.players(walletAddress);
+      setPlayer(p);
+
+      if (p.opponent !== ethers.ZeroAddress) {
+        const opp = await contract.players(p.opponent);
+        setOpponent(opp);
+      } else {
+        setOpponent(null);
       }
-      setActionInProgress(true);
-      await tx.wait();
-      fetchGameStatus(contract, account);
-    } catch (err) {
-      console.error("Gagal melakukan aksi:", err);
-    } finally {
-      setActionInProgress(false);
+    } catch (error) {
+      console.error("Gagal ambil data player:", error);
     }
   };
+
+  useEffect(() => {
+    connectWallet();
+  }, []);
+
+  useEffect(() => {
+    if (contract && walletAddress) {
+      fetchPlayerData();
+    }
+  }, [contract, walletAddress]);
 
   return (
-    <div className="p-4 text-center">
-      <h1 className="text-3xl font-bold mb-4">Arena PvP</h1>
-      <p>Status: {status}</p>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-2">Arena PvP</h1>
+      <p className="mb-4">Status: {status}</p>
 
-      {account && (
-        <>
-          <button
-            onClick={joinMatch}
-            className="mt-4 px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
-            disabled={actionInProgress}
-          >
-            Gabung PvP
-          </button>
+      <button
+        onClick={joinMatch}
+        disabled={isWaiting}
+        className="bg-purple-700 px-4 py-2 rounded hover:bg-purple-600 mb-6"
+      >
+        Gabung PvP
+      </button>
 
-          <div className="mt-6 grid grid-cols-2 gap-6">
-            <div className="border p-4 rounded">
-              <h2 className="font-bold mb-2">Kamu</h2>
-              <p>{account}</p>
-              <p>HP: {player ? player.hp.toString() : "-"}</p>
-              <p>Aksi Terakhir: {player ? player.lastAction : "-"}</p>
-              <p>Giliranku? {player?.isTurn ? "✅" : "❌"}</p>
-            </div>
+      <div className="grid grid-cols-2 gap-8">
+        {/* Kamu */}
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Kamu</h2>
+          <p>{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</p>
+          {player && (
+            <>
+              <HealthBar hp={Number(player.hp)} />
+              <p>Aksi: {["-", "Attack", "Defend", "Heal"][player.lastAction]}</p>
+            </>
+          )}
+        </div>
 
-            <div className="border p-4 rounded">
-              <h2 className="font-bold mb-2">Lawan</h2>
-              <p>{opponent ? opponent.opponent : "Belum ada lawan"}</p>
-              <p>HP: {opponent ? opponent.hp.toString() : "-"}</p>
-              <p>Aksi Terakhir: {opponent ? opponent.lastAction : "-"}</p>
-            </div>
-          </div>
-
-          <div className="mt-6 space-x-2">
-            <button
-              onClick={() => performAction("attack")}
-              className="bg-red-600 px-4 py-2 rounded hover:bg-red-700"
-              disabled={!player?.isTurn || actionInProgress}
-            >
-              Attack
-            </button>
-            <button
-              onClick={() => performAction("defend")}
-              className="bg-yellow-600 px-4 py-2 rounded hover:bg-yellow-700"
-              disabled={!player?.isTurn || actionInProgress}
-            >
-              Defend
-            </button>
-            <button
-              onClick={() => performAction("heal")}
-              className="bg-green-600 px-4 py-2 rounded hover:bg-green-700"
-              disabled={!player?.isTurn || actionInProgress}
-            >
-              Heal
-            </button>
-          </div>
-        </>
-      )}
+        {/* Lawan */}
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Lawan</h2>
+          {opponent ? (
+            <>
+              <p>{player.opponent.slice(0, 6)}...{player.opponent.slice(-4)}</p>
+              <HealthBar hp={Number(opponent.hp)} />
+              <p>Aksi: {["-", "Attack", "Defend", "Heal"][opponent.lastAction]}</p>
+            </>
+          ) : (
+            <p>Belum ada lawan</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
