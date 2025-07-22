@@ -1,5 +1,3 @@
-// src/pages/ArenaPVP.jsx
-
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
@@ -8,102 +6,103 @@ import { CONTRACT_ADDRESS } from "../utils/constants";
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [account, setAccount] = useState(null);
   const [contract, setContract] = useState(null);
+  const [account, setAccount] = useState(null);
+  const [playerStatus, setPlayerStatus] = useState(null);
+  const [opponentStatus, setOpponentStatus] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
 
-  const [player, setPlayer] = useState(null);
-  const [opponent, setOpponent] = useState(null);
-  const [status, setStatus] = useState("Belum terhubung");
+  useEffect(() => {
+    const connectWallet = async () => {
+      if (window.ethereum) {
+        const tempProvider = new ethers.BrowserProvider(window.ethereum);
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        const tempSigner = await tempProvider.getSigner();
+        const tempAccount = await tempSigner.getAddress();
+        const tempContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, tempSigner);
 
-  const connectWallet = async () => {
-    if (window.ethereum) {
-      const _provider = new ethers.BrowserProvider(window.ethereum);
-      await window.ethereum.request({ method: "eth_requestAccounts" });
-      const _signer = await _provider.getSigner();
-      const _account = await _signer.getAddress();
-      const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
+        setProvider(tempProvider);
+        setSigner(tempSigner);
+        setAccount(tempAccount);
+        setContract(tempContract);
+        setIsConnected(true);
+      }
+    };
 
-      setProvider(_provider);
-      setSigner(_signer);
-      setAccount(_account);
-      setContract(_contract);
-      setStatus("Terhubung");
-    } else {
-      alert("Silakan instal MetaMask terlebih dahulu!");
-    }
-  };
-
-  const joinMatchmaking = async () => {
-    if (!contract) return;
-    try {
-      const tx = await contract.matchPlayer();
-      await tx.wait();
-      fetchStatus();
-    } catch (error) {
-      console.error("Gagal bergabung matchmaking:", error);
-    }
-  };
+    connectWallet();
+  }, []);
 
   const fetchStatus = async () => {
     if (!contract || !account) return;
-    try {
-      const playerData = await contract.players(account);
-      if (playerData.opponent !== ethers.ZeroAddress) {
-        const opponentData = await contract.players(playerData.opponent);
-        setPlayer(playerData);
-        setOpponent(opponentData);
-      } else {
-        setPlayer(playerData);
-        setOpponent(null);
-      }
-    } catch (error) {
-      console.error("Gagal mengambil status:", error);
+
+    const player = await contract.players(account);
+    setPlayerStatus(player);
+
+    if (player.opponent !== ethers.ZeroAddress) {
+      const opponent = await contract.players(player.opponent);
+      setOpponentStatus(opponent);
+    } else {
+      setOpponentStatus(null);
     }
   };
 
-  useEffect(() => {
-    connectWallet();
-  }, []);
+  const handleJoinMatch = async () => {
+    if (!contract) return;
+    try {
+      const tx = await contract.joinMatch();
+      await tx.wait();
+      fetchStatus();
+    } catch (error) {
+      console.error("Gagal join match:", error);
+    }
+  };
 
   useEffect(() => {
     if (contract && account) {
       fetchStatus();
-
-      const interval = setInterval(() => {
-        fetchStatus();
-      }, 5000); // update tiap 5 detik
-
-      return () => clearInterval(interval);
     }
   }, [contract, account]);
 
-  const shorten = (addr) => addr?.slice(0, 6) + "..." + addr?.slice(-4);
+  const shortenAddress = (addr) =>
+    addr ? addr.slice(0, 6) + "..." + addr.slice(-4) : "-";
 
   return (
-    <div className="p-4 max-w-3xl mx-auto text-white">
-      <h1 className="text-3xl font-bold mb-4">Arena PvP</h1>
-      <p className="mb-2">Status: {status}</p>
-      {account && <p className="mb-4">Akun: {shorten(account)}</p>}
+    <div className="p-4 max-w-xl mx-auto text-center">
+      <h2 className="text-2xl font-bold mb-4">Arena PvP</h2>
+      <p className="mb-2">
+        Status:{" "}
+        <span className={isConnected ? "text-green-400" : "text-red-400"}>
+          {isConnected ? "Terhubung" : "Belum Terhubung"}
+        </span>
+      </p>
+      <p className="mb-4">Akun: {account ? shortenAddress(account) : "-"}</p>
+
       <button
-        className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded mb-6"
-        onClick={joinMatchmaking}
+        onClick={handleJoinMatch}
+        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mb-6"
       >
         Gabung PvP
       </button>
 
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <h2 className="text-xl font-semibold mb-2">Kamu</h2>
-          <p>{shorten(account)}</p>
-          <p>{player ? `${player.hp} / 100` : "-"}</p>
-          <p>Aksi Terakhir: {player?.lastAction || "-"}</p>
+        <div className="bg-gray-800 p-4 rounded">
+          <h3 className="text-lg font-semibold mb-2">Kamu</h3>
+          <p>{shortenAddress(account)}</p>
+          <p>{playerStatus ? `${playerStatus.hp} / 100` : "-"}</p>
+          <p>Aksi Terakhir: {playerStatus ? playerStatus.lastAction : "-"}</p>
         </div>
-
-        <div>
-          <h2 className="text-xl font-semibold mb-2">Lawan</h2>
-          <p>{opponent ? shorten(player.opponent) : "?"}</p>
-          <p>{opponent ? `${opponent.hp} / 100` : "-"}</p>
-          <p>Aksi Terakhir: {opponent?.lastAction || "-"}</p>
+        <div className="bg-gray-800 p-4 rounded">
+          <h3 className="text-lg font-semibold mb-2">Lawan</h3>
+          <p>
+            {opponentStatus
+              ? shortenAddress(playerStatus.opponent)
+              : "?"}
+          </p>
+          <p>{opponentStatus ? `${opponentStatus.hp} / 100` : "-"}</p>
+          <p>
+            Aksi Terakhir:{" "}
+            {opponentStatus ? opponentStatus.lastAction : "-"}
+          </p>
         </div>
       </div>
     </div>
