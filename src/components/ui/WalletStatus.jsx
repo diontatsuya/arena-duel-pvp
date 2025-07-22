@@ -1,44 +1,96 @@
-// src/components/ui/WalletStatus.jsx
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { ethers } from "ethers";
+import { CONTRACT_ADDRESS } from "../../utils/constants";
+import contractABI from "../../utils/contractABI.json";
 
-const WalletStatus = ({ isLoggedIn, account, sttBalance, onConnect, onLogout }) => {
+const WalletContext = createContext();
+
+export const WalletProvider = ({ children }) => {
+  const [wallet, setWallet] = useState(null);
+  const [balance, setBalance] = useState(null);
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [contract, setContract] = useState(null);
+
+  useEffect(() => {
+    const storedWallet = localStorage.getItem("walletAddress");
+    if (storedWallet) {
+      connectWallet(); // Auto connect jika ada wallet disimpan
+    }
+  }, []);
+
+  const connectWallet = async () => {
+    if (typeof window.ethereum === "undefined") {
+      alert("MetaMask tidak ditemukan!");
+      return;
+    }
+
+    const ethProvider = new ethers.BrowserProvider(window.ethereum);
+    const accounts = await ethProvider.send("eth_requestAccounts", []);
+    const address = accounts[0];
+
+    // Signature hanya saat login pertama kali
+    const tempSigner = await ethProvider.getSigner();
+    const message = "Sign in to Arena Duel Turn-Based";
+    await tempSigner.signMessage(message);
+
+    const contractInstance = new ethers.Contract(CONTRACT_ADDRESS, contractABI, tempSigner);
+    const sttBalance = await ethProvider.getBalance(address);
+    const formatted = ethers.formatEther(sttBalance);
+
+    setProvider(ethProvider);
+    setSigner(tempSigner);
+    setContract(contractInstance);
+    setWallet(address);
+    setBalance(formatted);
+    localStorage.setItem("walletAddress", address);
+  };
+
+  const disconnectWallet = () => {
+    setWallet(null);
+    setBalance(null);
+    setProvider(null);
+    setSigner(null);
+    setContract(null);
+    localStorage.removeItem("walletAddress");
+  };
+
   return (
-    <div className="bg-gray-800 p-4 rounded-lg shadow-md text-center">
-      {account ? (
-        isLoggedIn ? (
-          <>
-            <p className="mb-2 text-green-400 font-semibold">
-              Logged in as {account.slice(0, 6)}...{account.slice(-4)}
-            </p>
-            <p className="mb-2 text-yellow-400">
-              STT Balance: {sttBalance ?? "..."} STT
-            </p>
+    <WalletContext.Provider
+      value={{
+        wallet,
+        balance,
+        provider,
+        signer,
+        contract,
+        connectWallet,
+        disconnectWallet,
+      }}
+    >
+      <div className="flex justify-end p-4 text-sm">
+        {wallet ? (
+          <div className="text-right">
+            <div>Wallet: {wallet.slice(0, 6)}...{wallet.slice(-4)}</div>
+            <div>Balance: {Number(balance).toFixed(4)} STT</div>
             <button
-              onClick={onLogout}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
+              className="mt-1 px-3 py-1 bg-red-500 hover:bg-red-600 rounded text-white"
+              onClick={disconnectWallet}
             >
-              Logout
+              Disconnect
             </button>
-          </>
+          </div>
         ) : (
           <button
-            onClick={onConnect}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
+            onClick={connectWallet}
+            className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-white"
           >
-            Login with Wallet
+            Connect Wallet
           </button>
-        )
-      ) : (
-        <button
-          onClick={onConnect}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
-        >
-          Connect Wallet
-        </button>
-      )}
-    </div>
+        )}
+      </div>
+      {children}
+    </WalletContext.Provider>
   );
 };
 
-export default WalletStatus;
+export const useWallet = () => useContext(WalletContext);
