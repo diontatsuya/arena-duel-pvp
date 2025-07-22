@@ -25,3 +25,5 @@ const connectWallet = async () => {
     alert("Gagal menghubungkan wallet.");
   }
 };
+
+export default Navbar;
