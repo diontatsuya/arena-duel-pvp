@@ -2,130 +2,104 @@ import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
+import HealthBar from "../components/HealthBar";
 
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
-  const [player, setPlayer] = useState({});
-  const [opponent, setOpponent] = useState({});
-  const [isWaiting, setIsWaiting] = useState(true);
-  const [actionInProgress, setActionInProgress] = useState(false);
-  const [feedback, setFeedback] = useState("");
-  const [highlight, setHighlight] = useState(""); // for animation
+  const [player, setPlayer] = useState(null);
+  const [opponent, setOpponent] = useState(null);
+  const [statusText, setStatusText] = useState("Belum terhubung");
+  const [isMatched, setIsMatched] = useState(false);
 
+  // Inisialisasi provider, signer, dan kontrak
   useEffect(() => {
     const init = async () => {
       if (window.ethereum) {
-        const tempProvider = new ethers.BrowserProvider(window.ethereum);
-        const tempSigner = await tempProvider.getSigner();
-        const tempContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, tempSigner);
+        const newProvider = new ethers.providers.Web3Provider(window.ethereum);
+        const newSigner = newProvider.getSigner();
+        const newContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, newSigner);
+        const address = await newSigner.getAddress();
 
-        setProvider(tempProvider);
-        setSigner(tempSigner);
-        setContract(tempContract);
+        setProvider(newProvider);
+        setSigner(newSigner);
+        setContract(newContract);
+
+        const playerData = await newContract.players(address);
+        setPlayer(playerData);
+
+        if (playerData.opponent !== ethers.constants.AddressZero) {
+          const opponentData = await newContract.players(playerData.opponent);
+          setOpponent(opponentData);
+          setIsMatched(true);
+          setStatusText("Lawan ditemukan!");
+        } else {
+          setStatusText("Menunggu lawan...");
+        }
+      } else {
+        setStatusText("Wallet tidak ditemukan");
       }
     };
+
     init();
+
+    // Auto-refresh status setiap 3 detik
+    const interval = setInterval(init, 3000);
+    return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (!contract || !signer) return;
-    const fetchStatus = async () => {
-      const address = await signer.getAddress();
-      const data = await contract.players(address);
-      const opponentData = await contract.players(data.opponent);
-
-      setPlayer({ address, ...data });
-      setOpponent({ address: data.opponent, ...opponentData });
-
-      setIsWaiting(data.opponent === ethers.ZeroAddress);
-    };
-
-    fetchStatus();
-
-    const interval = setInterval(fetchStatus, 3000);
-    return () => clearInterval(interval);
-  }, [contract, signer]);
-
-  const handleAction = async (actionCode) => {
-    if (!contract || actionInProgress || isWaiting || !player.isTurn) return;
-    setActionInProgress(true);
+  const handleJoinMatch = async () => {
+    if (!contract) return;
     try {
-      const tx = await contract.takeAction(actionCode);
-      setFeedback("Menunggu konfirmasi aksi...");
+      const tx = await contract.joinMatch();
+      setStatusText("Bergabung ke arena...");
       await tx.wait();
-      setFeedback("Aksi berhasil!");
-      animateAction(actionCode);
+      setStatusText("Berhasil bergabung. Menunggu lawan...");
     } catch (err) {
       console.error(err);
-      setFeedback("Gagal melakukan aksi.");
+      setStatusText("Gagal bergabung");
     }
-    setActionInProgress(false);
-  };
-
-  const animateAction = (actionCode) => {
-    let color = "";
-    if (actionCode === 1) color = "attack";
-    else if (actionCode === 2) color = "defend";
-    else if (actionCode === 3) color = "heal";
-
-    setHighlight(color);
-    setTimeout(() => setHighlight(""), 400);
-  };
-
-  const renderFeedback = () => {
-    if (isWaiting) return "Menunggu lawan bergabung...";
-    if (!player.isTurn) return "Menunggu giliran lawan...";
-    return "Giliranmu! Pilih aksi.";
   };
 
   return (
-    <div className={`min-h-screen px-4 py-6 transition-all duration-300 ${highlight === "attack" ? "bg-red-900" : highlight === "defend" ? "bg-blue-900" : highlight === "heal" ? "bg-green-900" : "bg-gray-900"}`}>
-      <h1 className="text-3xl font-bold text-center mb-6">Arena PVP</h1>
-      <p className="text-center text-lg mb-4">{renderFeedback()}</p>
+    <div className="max-w-xl mx-auto mt-10 p-6 bg-gray-800 rounded-xl shadow-lg">
+      <h2 className="text-3xl font-bold mb-4 text-center">Arena PvP</h2>
 
-      <div className="grid grid-cols-2 gap-4 mb-6 text-center">
+      <div className="text-center mb-4">
+        <button
+          onClick={handleJoinMatch}
+          className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-full font-semibold"
+        >
+          Gabung PvP
+        </button>
+        <p className="mt-2 text-sm text-yellow-400">{statusText}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 items-center mt-6">
         <div>
-          <h2 className="text-xl font-semibold">Kamu</h2>
-          <p className="text-sm break-words">{player.address}</p>
-          <p className="text-2xl mt-2">{Number(player.hp || 0)} / 100</p>
+          <h3 className="text-xl font-bold mb-1">Kamu</h3>
+          <HealthBar hp={player?.hp || 0} />
+          <p>{player?.hp || 0} / 100</p>
         </div>
+
         <div>
-          <h2 className="text-xl font-semibold">Lawan</h2>
-          <p className="text-sm break-words">{opponent.address}</p>
-          <p className="text-2xl mt-2">{Number(opponent.hp || 0)} / 100</p>
+          <h3 className="text-xl font-bold mb-1">Lawan</h3>
+          {opponent ? (
+            <>
+              <HealthBar hp={opponent.hp} />
+              <p>{opponent.hp} / 100</p>
+            </>
+          ) : (
+            <p className="text-gray-400">Belum ada</p>
+          )}
         </div>
       </div>
 
-      {!isWaiting && player.isTurn && (
-        <div className="flex justify-center gap-4">
-          <button
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl transition disabled:opacity-50"
-            onClick={() => handleAction(1)}
-            disabled={actionInProgress}
-          >
-            Attack
-          </button>
-          <button
-            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl transition disabled:opacity-50"
-            onClick={() => handleAction(2)}
-            disabled={actionInProgress}
-          >
-            Defend
-          </button>
-          <button
-            className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-xl transition disabled:opacity-50"
-            onClick={() => handleAction(3)}
-            disabled={actionInProgress}
-          >
-            Heal
-          </button>
+      {isMatched && (
+        <div className="mt-6 text-center animate-bounce text-green-400 font-bold">
+          ⚔️ Pertarungan Dimulai!
         </div>
-      )}
-
-      {feedback && (
-        <p className="text-center text-yellow-400 mt-4">{feedback}</p>
       )}
     </div>
   );
