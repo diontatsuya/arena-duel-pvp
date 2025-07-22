@@ -7,9 +7,7 @@ const App = () => {
     <Router>
       <div className="min-h-screen bg-gray-900 text-white">
         <Navbar />
-        <main className="p-4">
-          <AppRoutes />
-        </main>
+        <AppRoutes />
       </div>
     </Router>
   );
