@@ -1,110 +1,110 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import ActionButtons from "../components/ui/ActionButton";
-import { CONTRACT_ADDRESS } from "../utils/constants";
 import { contractABI } from "../utils/contractABI";
+import { CONTRACT_ADDRESS } from "../utils/constants";
 
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
+  const [signerAddress, setSignerAddress] = useState(null);
   const [contract, setContract] = useState(null);
-  const [playerAddress, setPlayerAddress] = useState("");
-  const [opponentAddress, setOpponentAddress] = useState("");
-  const [playerHp, setPlayerHp] = useState(100);
-  const [opponentHp, setOpponentHp] = useState(100);
-  const [isPlayerTurn, setIsPlayerTurn] = useState(false);
-  const [lastAction, setLastAction] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [player, setPlayer] = useState({ address: "", hp: 100, isTurn: false });
+  const [opponent, setOpponent] = useState({ address: "", hp: 100 });
 
   useEffect(() => {
     const init = async () => {
       if (window.ethereum) {
-        const newProvider = new ethers.providers.Web3Provider(window.ethereum);
-        setProvider(newProvider);
-        const newSigner = newProvider.getSigner();
-        setSigner(newSigner);
-        const newContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, newSigner);
-        setContract(newContract);
+        const _provider = new ethers.BrowserProvider(window.ethereum);
+        const _signer = await _provider.getSigner();
+        const _address = await _signer.getAddress();
+        const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
 
-        const address = await newSigner.getAddress();
-        setPlayerAddress(address);
+        setProvider(_provider);
+        setSigner(_signer);
+        setSignerAddress(_address);
+        setContract(_contract);
       }
     };
+
     init();
   }, []);
 
   useEffect(() => {
-    if (contract && playerAddress) {
-      fetchGameState();
-    }
-  }, [contract, playerAddress]);
+    if (!contract || !signerAddress) return;
 
-  const fetchGameState = async () => {
-    try {
-      const playerData = await contract.players(playerAddress);
-
-      const opponentAddr = playerData.opponent;
-      setOpponentAddress(opponentAddr);
-      setPlayerHp(playerData.hp?.toNumber() || 0);
-      setIsPlayerTurn(playerData.isTurn);
-      setLastAction(playerData.lastAction);
-
-      if (opponentAddr !== ethers.constants.AddressZero) {
-        const opponentData = await contract.players(opponentAddr);
-        setOpponentHp(opponentData.hp?.toNumber() || 0);
-      } else {
-        setOpponentHp(0);
+    const joinGame = async () => {
+      try {
+        const playerData = await contract.players(signerAddress);
+        if (playerData.opponent === ethers.ZeroAddress) {
+          const tx = await contract.joinGame();
+          await tx.wait();
+        }
+      } catch (error) {
+        console.error("Gagal join game:", error);
       }
+    };
 
-      setLoading(false);
-    } catch (err) {
-      console.error("Failed to fetch game state:", err);
-    }
-  };
+    joinGame();
+  }, [contract, signerAddress]);
 
-  const handleAction = async (action) => {
-    if (!contract || !signer) return;
-    try {
-      const tx = await contract.takeAction(action);
-      await tx.wait();
-      fetchGameState(); // refresh state after action
-    } catch (err) {
-      console.error("Action failed:", err);
-    }
-  };
+  useEffect(() => {
+    if (!contract || !signerAddress) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const playerData = await contract.players(signerAddress);
+        const opponentAddress = playerData.opponent;
+        const isTurn = playerData.isTurn;
+        const hp = playerData.hp;
+
+        setPlayer((prev) => ({
+          ...prev,
+          address: signerAddress,
+          hp: hp.toNumber(),
+          isTurn,
+        }));
+
+        if (opponentAddress !== ethers.ZeroAddress) {
+          const opponentData = await contract.players(opponentAddress);
+          setOpponent((prev) => ({
+            ...prev,
+            address: opponentAddress,
+            hp: opponentData.hp.toNumber(),
+          }));
+        }
+      } catch (error) {
+        console.error("Gagal polling data PvP:", error);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [contract, signerAddress]);
 
   return (
-    <div className="p-6 max-w-2xl mx-auto text-center bg-gray-800 rounded-xl shadow-lg mt-10">
-      <h1 className="text-3xl font-bold mb-4">Arena PVP</h1>
+    <div className="p-4 text-center">
+      <h1 className="text-3xl font-bold mb-6">Arena PVP</h1>
 
-      {loading ? (
-        <p className="animate-pulse text-yellow-300">Menunggu lawan bergabung...</p>
+      {opponent.address === "" || opponent.address === ethers.ZeroAddress ? (
+        <p className="text-yellow-400 text-lg">Menunggu lawan bergabung...</p>
       ) : (
         <>
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold">Kamu</h2>
-            <p className="text-sm break-all text-green-300">{playerAddress}</p>
-            <p className="text-lg font-bold">{playerHp} / 100</p>
+          <div className="mb-6 grid grid-cols-2 gap-4 items-center justify-center">
+            <div>
+              <p className="font-semibold text-green-400">Kamu</p>
+              <p className="break-words text-xs">{player.address}</p>
+              <p className="text-2xl mt-2">{player.hp} / 100</p>
+            </div>
+            <div>
+              <p className="font-semibold text-red-400">Lawan</p>
+              <p className="break-words text-xs">{opponent.address}</p>
+              <p className="text-2xl mt-2">{opponent.hp} / 100</p>
+            </div>
           </div>
 
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold">Lawan</h2>
-            <p className="text-sm break-all text-red-300">{opponentAddress}</p>
-            <p className="text-lg font-bold">{opponentHp} / 100</p>
-          </div>
-
-          {opponentAddress === ethers.constants.AddressZero ? (
-            <p className="text-yellow-300 animate-pulse">Menunggu lawan bergabung...</p>
-          ) : isPlayerTurn ? (
-            <>
-              <p className="text-green-400 mb-2">Giliran kamu!</p>
-              <ActionButtons onAction={handleAction} disabled={false} />
-            </>
+          {player.isTurn ? (
+            <p className="text-blue-400">Giliran kamu bermain!</p>
           ) : (
-            <>
-              <p className="text-red-400 mb-2">Menunggu giliran lawan...</p>
-              <ActionButtons onAction={() => {}} disabled={true} />
-            </>
+            <p className="text-gray-400">Menunggu giliran lawan...</p>
           )}
         </>
       )}
