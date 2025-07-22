@@ -1,23 +1,27 @@
-// src/pages/Home.jsx
-import { Link } from "react-router-dom";
+import React from "react";
+import WalletStatus from "../components/ui/WalletStatus";
 
 const Home = () => {
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white px-4">
-      <h1 className="text-4xl font-bold mb-8">Arena Duel Turn-Based</h1>
-      <div className="space-x-4">
-        <Link
-          to="/arena-pvp"
-          className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold"
+    <div className="text-center mt-10">
+      <h1 className="text-3xl font-bold mb-4">Arena Duel Turn-Based</h1>
+      <p className="mb-6">Selamat datang di arena pertempuran! Pilih mode untuk memulai.</p>
+
+      <WalletStatus />
+
+      <div className="flex justify-center gap-4 mt-6">
+        <a
+          href="/pvp"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
         >
-          Masuk Arena PvP
-        </Link>
-        <Link
-          to="/arena-pve"
-          className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold"
+          Mode PvP
+        </a>
+        <a
+          href="/pve"
+          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg"
         >
-          Masuk Arena PvE
-        </Link>
+          Mode PvE
+        </a>
       </div>
     </div>
   );
