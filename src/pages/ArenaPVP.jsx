@@ -1,81 +1,131 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import { CONTRACT_ADDRESS } from "../utils/constants";
+import HealthBar from "../components/ui/HealthBar";
 import { contractABI } from "../utils/contractABI";
-import WalletStatus from "../components/ui/WalletStatus";
+import { CONTRACT_ADDRESS } from "../utils/constants";
 
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
-  const [userAddress, setUserAddress] = useState("");
-  const [playerData, setPlayerData] = useState(null);
-  const [opponentData, setOpponentData] = useState(null);
+  const [playerAddress, setPlayerAddress] = useState("");
+  const [playerHP, setPlayerHP] = useState(0);
+  const [opponentHP, setOpponentHP] = useState(0);
+  const [opponentAddress, setOpponentAddress] = useState("");
+  const [isPlayerTurn, setIsPlayerTurn] = useState(false);
+  const [status, setStatus] = useState("Connecting...");
 
-  // Setup provider, signer, and contract
   useEffect(() => {
     const init = async () => {
-      if (window.ethereum) {
-        const tempProvider = new ethers.BrowserProvider(window.ethereum);
-        const tempSigner = await tempProvider.getSigner();
-        const tempContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, tempSigner);
-        const tempAddress = await tempSigner.getAddress();
+      if (typeof window.ethereum !== "undefined") {
+        const newProvider = new ethers.BrowserProvider(window.ethereum);
+        const newSigner = await newProvider.getSigner();
+        const userAddress = await newSigner.getAddress();
+        const newContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, newSigner);
 
-        setProvider(tempProvider);
-        setSigner(tempSigner);
-        setContract(tempContract);
-        setUserAddress(tempAddress);
+        setProvider(newProvider);
+        setSigner(newSigner);
+        setContract(newContract);
+        setPlayerAddress(userAddress);
+
+        const playerData = await newContract.players(userAddress);
+
+        if (playerData.opponent === ethers.ZeroAddress) {
+          setStatus("Menunggu lawan bergabung...");
+        } else {
+          setOpponentAddress(playerData.opponent);
+          setIsPlayerTurn(playerData.isTurn);
+          setStatus("Lawan ditemukan!");
+          await updateHPs(newContract, userAddress, playerData.opponent);
+        }
+
+        // Listen to Match event
+        newContract.on("Matched", async (p1, p2) => {
+          if (userAddress === p1 || userAddress === p2) {
+            const updatedData = await newContract.players(userAddress);
+            setOpponentAddress(updatedData.opponent);
+            setIsPlayerTurn(updatedData.isTurn);
+            setStatus("Lawan ditemukan!");
+            await updateHPs(newContract, userAddress, updatedData.opponent);
+          }
+        });
+
+        // Listen to TurnChanged event
+        newContract.on("TurnChanged", (currentPlayer) => {
+          setIsPlayerTurn(currentPlayer === userAddress);
+        });
+
+        // Listen to HP updates
+        newContract.on("ActionPerformed", async (attacker, defender, action) => {
+          if (
+            attacker === userAddress ||
+            defender === userAddress
+          ) {
+            await updateHPs(newContract, userAddress, opponentAddress);
+          }
+        });
       }
     };
+
     init();
   }, []);
 
-  // Fetch player and opponent data
-  useEffect(() => {
-    const fetchPlayerData = async () => {
-      if (!contract || !userAddress) return;
+  const updateHPs = async (contract, playerAddr, opponentAddr) => {
+    const player = await contract.players(playerAddr);
+    const opponent = await contract.players(opponentAddr);
+    setPlayerHP(player.hp);
+    setOpponentHP(opponent.hp);
+  };
 
-      try {
-        const player = await contract.players(userAddress);
-        setPlayerData(player);
-
-        if (player.opponent !== ethers.ZeroAddress) {
-          const opponent = await contract.players(player.opponent);
-          setOpponentData(opponent);
-        } else {
-          setOpponentData(null);
-        }
-      } catch (err) {
-        console.error("Error fetching player data:", err);
-      }
-    };
-
-    fetchPlayerData();
-    const interval = setInterval(fetchPlayerData, 5000); // Refresh data setiap 5 detik
-    return () => clearInterval(interval);
-  }, [contract, userAddress]);
+  const handleAction = async (actionCode) => {
+    if (!contract) return;
+    try {
+      const tx = await contract.performAction(actionCode);
+      setStatus("Menjalankan aksi...");
+      await tx.wait();
+      setStatus("Aksi selesai!");
+    } catch (err) {
+      console.error(err);
+      setStatus("Aksi gagal!");
+    }
+  };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4">
-      <h1 className="text-3xl font-bold mb-6">Arena PvP</h1>
-      <WalletStatus />
+    <div className="p-6 max-w-xl mx-auto text-white">
+      <h1 className="text-3xl font-bold mb-4">Arena PVP</h1>
+      <p className="mb-4">{status}</p>
 
-      {!playerData ? (
-        <p className="text-gray-400">Memuat status duel kamu...</p>
-      ) : playerData.opponent === ethers.ZeroAddress ? (
-        <p className="text-yellow-400">🔄 Menunggu lawan untuk duel...</p>
-      ) : (
-        <div className="bg-gray-800 p-4 rounded-lg w-full max-w-md">
-          <h2 className="text-xl font-semibold mb-4">🧙 Status Duel</h2>
-          <p><strong>Kamu:</strong> {userAddress}</p>
-          <p><strong>HP:</strong> {playerData.hp.toString()}</p>
-          <p><strong>Aksi Terakhir:</strong> {Object.keys(playerData.lastAction)[0]}</p>
-          <p><strong>Giliran Kamu:</strong> {playerData.isTurn ? "✅ Ya" : "❌ Tidak"}</p>
-          <hr className="my-4 border-gray-600" />
-          <p><strong>Lawan:</strong> {playerData.opponent}</p>
-          <p><strong>HP Lawan:</strong> {opponentData?.hp.toString()}</p>
-          <p><strong>Aksi Lawan Terakhir:</strong> {Object.keys(opponentData?.lastAction || [])[0]}</p>
-        </div>
+      {opponentAddress && (
+        <>
+          <HealthBar name="Kamu" hp={playerHP} />
+          <HealthBar name="Lawan" hp={opponentHP} />
+          <p className="mb-4">
+            {isPlayerTurn ? "Giliranmu!" : "Menunggu giliran lawan..."}
+          </p>
+
+          {isPlayerTurn && (
+            <div className="flex gap-4">
+              <button
+                className="bg-red-500 px-4 py-2 rounded hover:bg-red-600"
+                onClick={() => handleAction(1)}
+              >
+                Attack
+              </button>
+              <button
+                className="bg-blue-500 px-4 py-2 rounded hover:bg-blue-600"
+                onClick={() => handleAction(2)}
+              >
+                Defend
+              </button>
+              <button
+                className="bg-green-500 px-4 py-2 rounded hover:bg-green-600"
+                onClick={() => handleAction(3)}
+              >
+                Heal
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
