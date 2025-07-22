@@ -3,7 +3,6 @@ import { Routes, Route } from "react-router-dom";
 import Home from "../pages/Home";
 import ArenaPVP from "../pages/ArenaPVP";
 import ArenaPVE from "../pages/ArenaPVE";
-import GamePVE from "../gameLogic/GamePVE";
 import NotFound from "../pages/NotFound";
 
 const AppRoutes = () => {
