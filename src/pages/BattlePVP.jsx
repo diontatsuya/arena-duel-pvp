@@ -1,88 +1,92 @@
 import { useEffect, useState } from "react";
-import { ACTIONS } from "../utils/constants";
+import { ethers } from "ethers";
 
 const BattlePVP = ({ contract, signer }) => {
   const [player, setPlayer] = useState(null);
   const [opponent, setOpponent] = useState(null);
-  const [isPlayerTurn, setIsPlayerTurn] = useState(false);
-  const [status, setStatus] = useState("Memuat...");
-  const [lastAction, setLastAction] = useState(null);
-  const [actionPending, setActionPending] = useState(false);
+  const [turn, setTurn] = useState(false);
+  const [status, setStatus] = useState("");
+  const [lastAction, setLastAction] = useState("");
 
-  const fetchStatus = async () => {
-    const address = await signer.getAddress();
-    const playerData = await contract.players(address);
-    if (playerData.opponent === "0x0000000000000000000000000000000000000000") {
-      setStatus("Menunggu lawan...");
-      return;
-    }
-
+  const fetchGameState = async () => {
+    const account = await signer.getAddress();
+    const playerData = await contract.players(account);
     const opponentData = await contract.players(playerData.opponent);
-    setPlayer({ ...playerData, address });
-    setOpponent({ ...opponentData, address: playerData.opponent });
-    setIsPlayerTurn(playerData.isTurn);
-    setLastAction(playerData.lastAction.toString());
-    setStatus("Bertarung!");
+
+    setPlayer({
+      hp: playerData.hp.toNumber(),
+      lastAction: playerData.lastAction,
+    });
+    setOpponent({
+      hp: opponentData.hp.toNumber(),
+      lastAction: opponentData.lastAction,
+    });
+    setTurn(playerData.isTurn);
   };
 
   useEffect(() => {
-    if (!contract || !signer) return;
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 3000);
-    return () => clearInterval(interval);
-  }, [contract, signer]);
+    fetchGameState();
+  }, []);
 
-  const performAction = async (action) => {
+  const doAction = async (actionType) => {
     try {
-      setActionPending(true);
-      const tx = await contract.takeAction(action);
+      setStatus(`Melakukan aksi ${actionType}...`);
+      let tx;
+      if (actionType === "attack") {
+        tx = await contract.attack();
+      } else if (actionType === "defend") {
+        tx = await contract.defend();
+      } else if (actionType === "heal") {
+        tx = await contract.heal();
+      }
       await tx.wait();
-      await fetchStatus();
+      setStatus("Aksi selesai!");
+      fetchGameState();
     } catch (err) {
       console.error(err);
-    } finally {
-      setActionPending(false);
+      setStatus("Gagal melakukan aksi.");
     }
   };
 
-  const renderActionButton = (label, actionValue) => (
-    <button
-      disabled={!isPlayerTurn || actionPending}
-      onClick={() => performAction(actionValue)}
-      className={`px-4 py-2 rounded font-bold mx-2 ${
-        isPlayerTurn
-          ? "bg-green-600 hover:bg-green-700"
-          : "bg-gray-500 cursor-not-allowed"
-      }`}
-    >
-      {label}
-    </button>
-  );
+  if (!player || !opponent) return <p className="text-center mt-10">Memuat data game...</p>;
 
   return (
     <div className="text-center mt-10">
-      <h2 className="text-2xl font-bold mb-4">Pertarungan PvP</h2>
-      <p>Status: {status}</p>
-      {player && opponent && (
-        <div className="mt-6 grid grid-cols-2 gap-8">
-          <div>
-            <h3 className="font-bold text-lg">Kamu</h3>
-            <p>HP: {player.hp.toString()}</p>
-            <p>Aksi Terakhir: {ACTIONS[lastAction] ?? "None"}</p>
-          </div>
-          <div>
-            <h3 className="font-bold text-lg">Lawan</h3>
-            <p>HP: {opponent.hp.toString()}</p>
-            <p>Aksi Terakhir: {ACTIONS[opponent.lastAction.toString()] ?? "None"}</p>
-          </div>
+      <h2 className="text-2xl font-bold mb-4">Arena PvP: Pertarungan Berlangsung</h2>
+      <div className="mb-4">
+        <p className="text-lg">Kamu (HP: {player.hp})</p>
+        <p className="text-sm text-gray-400">Aksi terakhir: {player.lastAction}</p>
+      </div>
+      <div className="mb-4">
+        <p className="text-lg">Lawan (HP: {opponent.hp})</p>
+        <p className="text-sm text-gray-400">Aksi terakhir: {opponent.lastAction}</p>
+      </div>
+      <p className="mb-2 font-bold">
+        {turn ? "Giliran kamu!" : "Menunggu giliran lawan..."}
+      </p>
+      {turn && (
+        <div className="space-x-2">
+          <button
+            onClick={() => doAction("attack")}
+            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-white"
+          >
+            Serang
+          </button>
+          <button
+            onClick={() => doAction("defend")}
+            className="bg-yellow-500 hover:bg-yellow-600 px-4 py-2 rounded text-white"
+          >
+            Bertahan
+          </button>
+          <button
+            onClick={() => doAction("heal")}
+            className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-white"
+          >
+            Pulihkan
+          </button>
         </div>
       )}
-      <div className="mt-6">
-        <h3 className="mb-2">Aksi:</h3>
-        {renderActionButton("Attack", 1)}
-        {renderActionButton("Defend", 2)}
-        {renderActionButton("Heal", 3)}
-      </div>
+      <p className="mt-4">{status}</p>
     </div>
   );
 };
