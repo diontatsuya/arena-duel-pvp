@@ -1,78 +1,56 @@
 import { useEffect, useState } from "react";
-import { ethers } from "ethers";
-import { contractABI } from "../utils/contractABI";
-import { CONTRACT_ADDRESS } from "../utils/constants";
 import { useNavigate } from "react-router-dom";
+import { ethers } from "ethers";
+import { CONTRACT_ADDRESS } from "../utils/constants";
+import { contractABI } from "../utils/contractABI";
 
 const GameStatus = () => {
-  const [account, setAccount] = useState("");
   const [playerStatus, setPlayerStatus] = useState(null);
-  const [opponentStatus, setOpponentStatus] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [opponentAddress, setOpponentAddress] = useState(null);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchStatus = async () => {
+    const checkStatus = async () => {
       try {
-        if (!window.ethereum) return alert("Install MetaMask!");
+        if (!window.ethereum) throw new Error("Wallet tidak ditemukan");
+
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         const address = await signer.getAddress();
-        setAccount(address);
-
         const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
         const player = await contract.players(address);
 
-        if (player.opponent === ethers.ZeroAddress) {
-          setLoading(false);
-          return;
-        }
-
-        const opponent = await contract.players(player.opponent);
         setPlayerStatus(player);
-        setOpponentStatus(opponent);
+
+        if (player.opponent !== ethers.ZeroAddress) {
+          setOpponentAddress(player.opponent);
+          navigate("/battle");
+        }
       } catch (err) {
-        console.error("Error:", err);
-      } finally {
-        setLoading(false);
+        setError(err.message);
       }
     };
 
-    fetchStatus();
-  }, []);
+    checkStatus();
+    const interval = setInterval(checkStatus, 3000); // polling setiap 3 detik
 
-  const goToBattle = () => navigate("/battle");
+    return () => clearInterval(interval);
+  }, [navigate]);
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Status Game PvP</h1>
-      {loading ? (
-        <p>Memuat status game...</p>
-      ) : playerStatus ? (
-        <div className="space-y-4">
-          <p><strong>Alamat Wallet:</strong> {account}</p>
-          <div>
-            <h2 className="text-xl font-semibold">Status Kamu</h2>
-            <p>HP: {playerStatus.hp.toString()}</p>
-            <p>Giliran Kamu: {playerStatus.isTurn ? "Ya" : "Tidak"}</p>
-            <p>Aksi Terakhir: {["-", "Attack", "Defend", "Heal"][playerStatus.lastAction]}</p>
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold">Status Lawan</h2>
-            <p>Alamat: {playerStatus.opponent}</p>
-            <p>HP: {opponentStatus.hp.toString()}</p>
-            <p>Giliran: {opponentStatus.isTurn ? "Ya" : "Tidak"}</p>
-            <p>Aksi Terakhir: {["-", "Attack", "Defend", "Heal"][opponentStatus.lastAction]}</p>
-          </div>
-          <button
-            onClick={goToBattle}
-            className="mt-4 px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
-          >
-            Lanjut ke Pertarungan
-          </button>
-        </div>
+    <div className="text-center mt-10">
+      <h2 className="text-xl font-semibold mb-2">Status Permainan</h2>
+      {error && <p className="text-red-500">{error}</p>}
+
+      {playerStatus ? (
+        playerStatus.opponent === ethers.ZeroAddress ? (
+          <p className="text-yellow-400">Menunggu lawan bergabung...</p>
+        ) : (
+          <p className="text-green-400">Lawan ditemukan! Mengalihkan ke battle...</p>
+        )
       ) : (
-        <p>Kamu tidak sedang dalam pertarungan.</p>
+        <p className="text-gray-300">Memeriksa status permainan...</p>
       )}
     </div>
   );
