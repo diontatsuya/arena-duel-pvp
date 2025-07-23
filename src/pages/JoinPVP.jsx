@@ -1,80 +1,70 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
-import { useNavigate } from "react-router-dom";
 
 const JoinPVP = () => {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
-  const [contract, setContract] = useState(null);
-  const [status, setStatus] = useState("");
   const [account, setAccount] = useState(null);
+  const [status, setStatus] = useState("Belum terhubung");
+  const [isMatching, setIsMatching] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const init = async () => {
-      if (window.ethereum) {
-        const _provider = new ethers.providers.Web3Provider(window.ethereum);
-        await _provider.send("eth_requestAccounts", []);
-        const _signer = _provider.getSigner();
-        const _account = await _signer.getAddress();
-        const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
+    const connectAndJoin = async () => {
+      if (!window.ethereum) {
+        alert("MetaMask tidak ditemukan!");
+        return;
+      }
 
-        setProvider(_provider);
-        setSigner(_signer);
-        setContract(_contract);
-        setAccount(_account);
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        const signer = await provider.getSigner();
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+
+        setAccount(accounts[0]);
+        setStatus("Menghubungkan...");
+
+        const player = await contract.players(accounts[0]);
+
+        if (player.opponent !== ethers.ZeroAddress) {
+          // Sudah punya lawan, langsung ke battle
+          navigate("/battle-pvp", { state: { playerAddress: accounts[0] } });
+        } else {
+          // Daftarkan pemain ke antrean matchmaking
+          const tx = await contract.joinQueue();
+          await tx.wait();
+
+          setStatus("Menunggu lawan PvP...");
+          setIsMatching(true);
+
+          // Polling tiap 3 detik untuk cek apakah sudah ada lawan
+          const interval = setInterval(async () => {
+            const updatedPlayer = await contract.players(accounts[0]);
+            if (updatedPlayer.opponent !== ethers.ZeroAddress) {
+              clearInterval(interval);
+              navigate("/battle-pvp", { state: { playerAddress: accounts[0] } });
+            }
+          }, 3000);
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus("Terjadi kesalahan saat matchmaking.");
       }
     };
-    init();
-  }, []);
 
-  const handleJoinPVP = async () => {
-    if (!contract || !signer) return;
-
-    try {
-      setStatus("Mengirim transaksi...");
-
-      const tx = await contract.matchPlayer(); // ganti dengan fungsi kontrakmu jika berbeda
-      await tx.wait();
-
-      setStatus("Berhasil masuk antrian. Menunggu lawan...");
-      checkOpponentStatus();
-    } catch (err) {
-      console.error(err);
-      setStatus("Gagal mengirim transaksi.");
-    }
-  };
-
-  const checkOpponentStatus = async () => {
-    try {
-      const playerData = await contract.players(account);
-      if (playerData.opponent !== ethers.constants.AddressZero) {
-        setStatus("Lawan ditemukan! Masuk ke arena...");
-        setTimeout(() => {
-          navigate("/arena-pvp");
-        }, 1500);
-      } else {
-        // Cek lagi setelah 5 detik
-        setTimeout(checkOpponentStatus, 5000);
-      }
-    } catch (err) {
-      console.error(err);
-      setStatus("Gagal memeriksa status lawan.");
-    }
-  };
+    connectAndJoin();
+  }, [navigate]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
-      <h1 className="text-3xl font-bold mb-6">Gabung Arena PvP</h1>
-      <button
-        onClick={handleJoinPVP}
-        className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg text-lg font-semibold"
-      >
-        Gabung PvP
-      </button>
-      {status && <p className="mt-4 text-sm text-gray-300">{status}</p>}
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white px-4">
+      <h1 className="text-3xl font-bold mb-4">Bergabung ke Arena PvP</h1>
+      <p className="mb-2">Alamat Wallet: {account || "-"}</p>
+      <p className="mb-4">Status: {status}</p>
+      {isMatching && (
+        <div className="animate-pulse text-blue-400">Mencari lawan...</div>
+      )}
     </div>
   );
 };
