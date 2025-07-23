@@ -4,7 +4,7 @@ import ArenaPVP from "../pages/ArenaPVP";
 import ArenaPVE from "../pages/ArenaPVE";
 import JoinPVP from "../pages/JoinPVP";
 import BattlePVP from "../pages/BattlePVP";
-import GameStatus from "../pages/GameStatus";
+import GameStatus from "../components/ui/GameStatus";
 import NotFound from "../pages/NotFound"; // Pastikan file ini ada
 
 const AppRoutes = () => {
