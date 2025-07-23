@@ -1,85 +1,62 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import { CONTRACT_ADDRESS } from "../utils/constants";
+import JoinPVP from "./JoinPVP";
+import BattlePVP from "./BattlePVP";
 import { contractABI } from "../utils/contractABI";
-import GameStatus from "../components/ui/GameStatus"; // ✅ Tambahkan ini
-import { useNavigate } from "react-router-dom";
+import { CONTRACT_ADDRESS } from "../utils/constants";
 
 const ArenaPVP = () => {
-  const [isWalletConnected, setIsWalletConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [isInGame, setIsInGame] = useState(false); // ✅ Tambahkan ini
-  const navigate = useNavigate();
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [contract, setContract] = useState(null);
+  const [status, setStatus] = useState("loading");
 
   useEffect(() => {
-    checkIfWalletIsConnected();
+    const init = async () => {
+      if (window.ethereum) {
+        const _provider = new ethers.BrowserProvider(window.ethereum);
+        const _signer = await _provider.getSigner();
+        const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
+
+        setProvider(_provider);
+        setSigner(_signer);
+        setContract(_contract);
+
+        try {
+          const userAddress = await _signer.getAddress();
+          const playerStatus = await _contract.getStatus(userAddress);
+
+          // Status:
+          // 0 = Belum bergabung
+          // 1 = Menunggu lawan
+          // 2 = Sedang bertarung
+          if (playerStatus === 2) {
+            setStatus("battle");
+          } else {
+            setStatus("join");
+          }
+        } catch (err) {
+          console.error("Gagal mengambil status pemain:", err);
+          setStatus("error");
+        }
+      } else {
+        alert("Harap install MetaMask untuk bermain!");
+        setStatus("no-wallet");
+      }
+    };
+
+    init();
   }, []);
 
-  const checkIfWalletIsConnected = async () => {
-    if (window.ethereum) {
-      const accounts = await window.ethereum.request({ method: "eth_accounts" });
-      if (accounts.length > 0) {
-        setIsWalletConnected(true);
-        setWalletAddress(accounts[0]);
-        checkPlayerGameStatus(accounts[0]); // ✅ Cek status saat wallet terhubung
-      }
-    }
-  };
+  if (status === "loading") {
+    return <div className="text-center mt-10">Memuat Arena PvP...</div>;
+  }
 
-  const checkPlayerGameStatus = async (address) => {
-    try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
-      const player = await contract.players(address);
-      if (player.opponent !== ethers.constants.AddressZero) {
-        setIsInGame(true);
-      } else {
-        setIsInGame(false);
-      }
-    } catch (err) {
-      console.error("Gagal memeriksa status game:", err);
-    }
-  };
+  if (status === "battle") {
+    return <BattlePVP provider={provider} signer={signer} contract={contract} />;
+  }
 
-  const handleJoinMatch = async () => {
-    setErrorMessage("");
-
-    if (!isWalletConnected) return;
-
-    try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-      const tx = await contract.matchPlayer();
-      await tx.wait();
-      navigate("/join-pvp");
-    } catch (error) {
-      console.error("Matchmaking gagal:", error);
-      setErrorMessage("Gagal matchmaking: Kamu mungkin sudah berada dalam game.");
-      checkPlayerGameStatus(walletAddress); // ✅ Perbarui status
-    }
-  };
-
-  return (
-    <div className="text-center mt-10">
-      <h2 className="text-3xl font-bold mb-4">Bergabung ke Arena PvP</h2>
-      <p className="mb-2">Alamat Wallet: {walletAddress}</p>
-      {!isWalletConnected ? (
-        <p className="text-red-500">Hubungkan wallet terlebih dahulu</p>
-      ) : isInGame ? (
-        <GameStatus address={walletAddress} /> // ✅ Tampilkan status game
-      ) : (
-        <button
-          onClick={handleJoinMatch}
-          className="px-6 py-2 bg-blue-600 rounded hover:bg-blue-700"
-        >
-          Gabung PvP
-        </button>
-      )}
-      {errorMessage && <p className="text-red-500 mt-4">{errorMessage}</p>}
-    </div>
-  );
+  return <JoinPVP provider={provider} signer={signer} contract={contract} />;
 };
 
 export default ArenaPVP;
