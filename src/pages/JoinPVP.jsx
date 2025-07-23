@@ -25,16 +25,26 @@ const JoinPVP = () => {
 
         const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
 
+        // 🔁 Cek apakah player sudah berada dalam game
+        const player = await contract.players(address);
+        if (player.opponent !== ethers.ZeroAddress) {
+          setStatus("Kamu sudah berada dalam game. Mengarahkan ke arena...");
+          setTimeout(() => {
+            navigate("/battle", { state: { player: address } });
+          }, 1500);
+          return;
+        }
+
+        // 🟢 Lanjutkan joinGame jika belum terdaftar
         setStatus("Mengirim permintaan matchmaking...");
         const tx = await contract.joinGame();
         await tx.wait();
 
         setStatus("Menunggu lawan...");
 
-        // Cek status berulang sampai menemukan lawan
         const interval = setInterval(async () => {
-          const player = await contract.players(address);
-          if (player.opponent !== ethers.ZeroAddress) {
+          const updatedPlayer = await contract.players(address);
+          if (updatedPlayer.opponent !== ethers.ZeroAddress) {
             clearInterval(interval);
             setStatus("Lawan ditemukan! Menuju arena...");
             setTimeout(() => {
