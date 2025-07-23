@@ -2,7 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import Home from "../pages/Home";
 import ArenaPVP from "../pages/ArenaPVP";
 import ArenaPVE from "../pages/ArenaPVE";
-import PVPJoin from "../pages/PVPJoin";
+import JoinPVP from "../pages/JoinPVP";
 import BattlePVP from "../pages/BattlePVP";
 import NotFound from "../pages/NotFound"; // Pastikan file ini ada
 
