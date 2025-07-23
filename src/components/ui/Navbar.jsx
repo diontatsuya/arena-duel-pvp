@@ -37,9 +37,6 @@ const Navbar = () => {
         <Link to="/" className="hover:underline">
           Home
         </Link>
-        <Link to="/join-pvp" className="hover:underline">
-          Gabung PvP
-        </Link>
         <Link to="/pvp" className="hover:underline">
           Arena PvP
         </Link>
