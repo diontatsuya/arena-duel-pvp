@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+// src/pages/ArenaPVP.jsx
+import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
@@ -7,132 +8,162 @@ const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
-  const [account, setAccount] = useState(null);
+  const [walletAddress, setWalletAddress] = useState(null);
+  const [status, setStatus] = useState("Belum terhubung");
   const [player, setPlayer] = useState(null);
   const [opponent, setOpponent] = useState(null);
-  const [isMatched, setIsMatched] = useState(false);
-  const [isMyTurn, setIsMyTurn] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("Belum terhubung");
+  const [isPlayerTurn, setIsPlayerTurn] = useState(false);
+  const [winner, setWinner] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const init = async () => {
-      if (window.ethereum) {
-        const _provider = new ethers.BrowserProvider(window.ethereum);
-        setProvider(_provider);
-        const _signer = await _provider.getSigner();
-        setSigner(_signer);
-        const address = await _signer.getAddress();
-        setAccount(address);
-
-        const _contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, _signer);
-        setContract(_contract);
-      }
-    };
-    init();
-  }, []);
-
-  useEffect(() => {
-    if (contract && account) {
-      getPlayerStatus();
-    }
-  }, [contract, account]);
-
-  const getPlayerStatus = async () => {
-    const playerData = await contract.players(account);
-    setPlayer(playerData);
-
-    if (playerData.opponent !== ethers.ZeroAddress) {
-      setIsMatched(true);
-      setOpponent(playerData.opponent);
-      setIsMyTurn(playerData.isTurn);
-      setStatusMessage("Sudah tergabung dan menemukan lawan");
-    } else {
-      setStatusMessage("Belum bergabung");
+  // Fungsi utama connect + contract setup
+  const connectWallet = async () => {
+    if (window.ethereum) {
+      const p = new ethers.BrowserProvider(window.ethereum);
+      await p.send("eth_requestAccounts", []);
+      const s = await p.getSigner();
+      const address = await s.getAddress();
+      const c = new ethers.Contract(CONTRACT_ADDRESS, contractABI, s);
+      setProvider(p);
+      setSigner(s);
+      setWalletAddress(address);
+      setContract(c);
+      setStatus("Terhubung");
     }
   };
 
-  const handleJoinMatch = async () => {
-    if (!contract || !signer) return;
+  const joinMatch = async () => {
+    if (!contract || !walletAddress) return;
+    setLoading(true);
     try {
-      const tx = await contract.joinMatch();
-      setStatusMessage("Menunggu konfirmasi...");
+      const tx = await contract.matchPlayer();
       await tx.wait();
-      setStatusMessage("Gabung PvP berhasil. Menunggu lawan...");
-      await getPlayerStatus();
+      setStatus("Menunggu lawan...");
+      fetchStatus(); // perbarui data setelah join
     } catch (err) {
-      console.error("Join match failed:", err);
-      setStatusMessage("Gagal gabung PvP");
+      console.error("Gagal join:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStatus = async () => {
+    if (!contract || !walletAddress) return;
+
+    try {
+      const p = await contract.players(walletAddress);
+      const o = p.opponent && p.opponent !== ethers.ZeroAddress
+        ? await contract.players(p.opponent)
+        : null;
+
+      setPlayer(p);
+      setOpponent(o);
+      setIsPlayerTurn(p.isTurn);
+
+      // Cek menang/kalah
+      if (p.hp === 0 && o?.hp > 0) setWinner("Lawan menang");
+      else if (o?.hp === 0 && p.hp > 0) setWinner("Kamu menang");
+      else if (p.hp === 0 && o?.hp === 0) setWinner("Seri");
+      else setWinner(null);
+    } catch (err) {
+      console.error("Gagal fetch status:", err);
     }
   };
 
   const handleAction = async (actionIndex) => {
-    if (!contract || !isMyTurn) return;
+    if (!contract || !walletAddress || !isPlayerTurn) return;
+    setLoading(true);
     try {
-      const tx = await contract.performAction(actionIndex);
-      setStatusMessage("Mengirim aksi...");
+      const tx = await contract.takeTurn(actionIndex);
       await tx.wait();
-      await getPlayerStatus();
+      fetchStatus(); // update status setelah aksi
     } catch (err) {
-      console.error("Aksi gagal:", err);
-      setStatusMessage("Aksi gagal");
+      console.error("Gagal aksi:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const renderAksiButtons = () => {
-    if (!isMatched || !isMyTurn) return null;
-    return (
-      <div className="flex space-x-4 mt-4">
-        <button
-          onClick={() => handleAction(1)}
-          className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded"
-        >
-          Attack
-        </button>
-        <button
-          onClick={() => handleAction(2)}
-          className="bg-yellow-500 hover:bg-yellow-600 px-4 py-2 rounded"
-        >
-          Defend
-        </button>
-        <button
-          onClick={() => handleAction(3)}
-          className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded"
-        >
-          Heal
-        </button>
-      </div>
-    );
-  };
+  useEffect(() => {
+    connectWallet();
+  }, []);
+
+  useEffect(() => {
+    if (contract && walletAddress) {
+      fetchStatus();
+      const interval = setInterval(fetchStatus, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [contract, walletAddress]);
 
   return (
-    <div className="p-6 max-w-2xl mx-auto text-center">
-      <h1 className="text-3xl font-bold mb-6">Arena PvP</h1>
-
-      <p className="mb-4">Status: <span className="font-semibold">{statusMessage}</span></p>
-
-      {!isMatched && (
+    <div className="p-4 max-w-xl mx-auto text-center bg-gray-800 rounded-xl mt-6 shadow-lg">
+      <h1 className="text-2xl font-bold mb-4">Arena PvP</h1>
+      <p className="mb-2">Status: {status}</p>
+      {!player?.opponent && (
         <button
-          onClick={handleJoinMatch}
-          className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded mb-4"
+          onClick={joinMatch}
+          className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white"
+          disabled={loading}
         >
-          Gabung PvP
+          {loading ? "Memproses..." : "Gabung PvP"}
         </button>
       )}
 
-      <div className="grid grid-cols-2 gap-4 mt-6 text-left">
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h2 className="text-xl font-bold mb-2">Kamu</h2>
-          <p><span className="font-semibold">Alamat:</span> {account}</p>
-          <p><span className="font-semibold">Aksi Terakhir:</span> {player?.lastAction ?? "-"}</p>
-        </div>
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h2 className="text-xl font-bold mb-2">Lawan</h2>
-          <p><span className="font-semibold">Alamat:</span> {opponent || "-"}</p>
-          {isMatched && <p><span className="font-semibold">Giliran:</span> {isMyTurn ? "Giliran kamu" : "Giliran lawan"}</p>}
-        </div>
-      </div>
+      {player?.opponent && (
+        <>
+          <div className="my-4 grid grid-cols-2 gap-4 text-sm">
+            <div className="bg-gray-700 p-3 rounded">
+              <h2 className="font-semibold mb-1">Kamu</h2>
+              <p>HP: {player.hp}</p>
+              <p>Aksi terakhir: {["-", "Attack", "Defend", "Heal"][player.lastAction]}</p>
+              <p>{isPlayerTurn ? "🎯 Giliranmu" : ""}</p>
+            </div>
+            <div className="bg-gray-700 p-3 rounded">
+              <h2 className="font-semibold mb-1">Lawan</h2>
+              {opponent ? (
+                <>
+                  <p>HP: {opponent.hp}</p>
+                  <p>Aksi terakhir: {["-", "Attack", "Defend", "Heal"][opponent.lastAction]}</p>
+                  <p>{!isPlayerTurn ? "🔄 Giliran lawan" : ""}</p>
+                </>
+              ) : (
+                <p>Menunggu lawan bergabung...</p>
+              )}
+            </div>
+          </div>
 
-      {renderAksiButtons()}
+          {winner ? (
+            <p className="text-lg font-bold text-green-400">{winner}</p>
+          ) : (
+            isPlayerTurn && (
+              <div className="flex justify-center space-x-4 mt-4">
+                <button
+                  onClick={() => handleAction(1)}
+                  className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded"
+                  disabled={loading}
+                >
+                  Attack
+                </button>
+                <button
+                  onClick={() => handleAction(2)}
+                  className="bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded"
+                  disabled={loading}
+                >
+                  Defend
+                </button>
+                <button
+                  onClick={() => handleAction(3)}
+                  className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded"
+                  disabled={loading}
+                >
+                  Heal
+                </button>
+              </div>
+            )
+          )}
+        </>
+      )}
     </div>
   );
 };
