@@ -7,128 +7,94 @@ const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
-  const [account, setAccount] = useState(null);
+  const [walletAddress, setWalletAddress] = useState("");
   const [player, setPlayer] = useState(null);
   const [opponent, setOpponent] = useState(null);
   const [isJoining, setIsJoining] = useState(false);
+  const [status, setStatus] = useState("Belum terhubung");
 
-  // Hubungkan wallet dan inisialisasi
   useEffect(() => {
-    const connectWallet = async () => {
+    const init = async () => {
       if (window.ethereum) {
-        const newProvider = new ethers.providers.Web3Provider(window.ethereum);
-        const newSigner = newProvider.getSigner();
-        const newAccount = await newSigner.getAddress();
+        const tempProvider = new ethers.BrowserProvider(window.ethereum);
+        const tempSigner = await tempProvider.getSigner();
+        const tempContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, tempSigner);
 
-        const newContract = new ethers.Contract(
-          CONTRACT_ADDRESS,
-          contractABI,
-          newSigner
-        );
+        const address = await tempSigner.getAddress();
+        setProvider(tempProvider);
+        setSigner(tempSigner);
+        setContract(tempContract);
+        setWalletAddress(address);
+        setStatus("Terhubung");
 
-        setProvider(newProvider);
-        setSigner(newSigner);
-        setAccount(newAccount);
-        setContract(newContract);
+        fetchPlayer(tempContract, address);
       }
     };
 
-    connectWallet();
+    init();
   }, []);
 
-  // Ambil data pemain saat contract dan account siap
-  useEffect(() => {
-    const fetchPlayers = async () => {
-      if (contract && account) {
-        try {
-          const data = await contract.players(account);
-          setPlayer(data);
-
-          if (data.opponent !== ethers.constants.AddressZero) {
-            const opponentData = await contract.players(data.opponent);
-            setOpponent(opponentData);
-          } else {
-            setOpponent(null);
-          }
-        } catch (error) {
-          console.error("Gagal memuat data pemain:", error);
-        }
-      }
-    };
-
-    fetchPlayers();
-  }, [contract, account]);
-
-  // Fungsi untuk gabung PvP
-  const handleJoin = async () => {
-    if (!contract) return;
-
-    setIsJoining(true);
+  const fetchPlayer = async (contract, address) => {
     try {
-      const tx = await contract.joinGame();
-      await tx.wait();
-      // Refresh data setelah join
-      const data = await contract.players(account);
-      setPlayer(data);
-      if (data.opponent !== ethers.constants.AddressZero) {
-        const opponentData = await contract.players(data.opponent);
+      const playerData = await contract.players(address);
+      setPlayer(playerData);
+
+      if (playerData.opponent !== ethers.ZeroAddress) {
+        const opponentData = await contract.players(playerData.opponent);
         setOpponent(opponentData);
+      } else {
+        setOpponent(null);
       }
     } catch (error) {
-      console.error("Gagal join game:", error);
-    } finally {
-      setIsJoining(false);
+      console.error("Gagal mengambil data pemain:", error);
     }
   };
 
+  const handleJoinGame = async () => {
+    if (!contract || !signer) return;
+    setIsJoining(true);
+
+    try {
+      const tx = await contract.joinGame({ gasLimit: 100000 });
+      setStatus("Menunggu konfirmasi...");
+      await tx.wait();
+      setStatus("Berhasil bergabung!");
+      fetchPlayer(contract, walletAddress);
+    } catch (error) {
+      console.error("Gagal bergabung:", error);
+      setStatus("Gagal bergabung");
+    }
+
+    setIsJoining(false);
+  };
+
   return (
-    <div className="max-w-2xl mx-auto mt-8 p-4 bg-gray-800 rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-4">Arena PvP</h2>
+    <div className="p-4 max-w-3xl mx-auto">
+      <h1 className="text-3xl font-bold mb-4 text-center">Arena PvP</h1>
+      <div className="text-center mb-2">Status: {status}</div>
 
-      <p className="mb-4">
-        Status:{" "}
-        {account ? (
-          <span className="text-green-400">{account}</span>
-        ) : (
-          <span className="text-red-400">Belum terhubung</span>
-        )}
-      </p>
-
-      {!player?.opponent || player.opponent === ethers.constants.AddressZero ? (
-        <button
-          onClick={handleJoin}
-          disabled={isJoining}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded mb-4"
-        >
-          {isJoining ? "Bergabung..." : "Gabung PvP"}
-        </button>
-      ) : (
-        <div className="text-yellow-400 mb-4">Sedang dalam pertarungan!</div>
+      {!player?.opponent && (
+        <div className="text-center mb-4">
+          <button
+            className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded disabled:opacity-50"
+            onClick={handleJoinGame}
+            disabled={isJoining || !signer}
+          >
+            {isJoining ? "Bergabung..." : "Gabung PvP"}
+          </button>
+        </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 mt-4">
-        <div className="p-4 border rounded bg-gray-700">
-          <h3 className="text-xl font-semibold mb-2">Kamu</h3>
-          {player ? (
-            <>
-              <p>HP: {player.hp.toString()}</p>
-              <p>Aksi Terakhir: {["-", "Attack", "Defend", "Heal"][player.lastAction]}</p>
-            </>
-          ) : (
-            <p>Belum bergabung</p>
-          )}
+      <div className="grid grid-cols-2 gap-4 text-center">
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Kamu</h2>
+          <p>{player ? walletAddress : "Belum bergabung"}</p>
+          <p>HP: {player ? player.hp?.toString() : "-"}</p>
         </div>
-
-        <div className="p-4 border rounded bg-gray-700">
-          <h3 className="text-xl font-semibold mb-2">Lawan</h3>
-          {opponent ? (
-            <>
-              <p>HP: {opponent.hp.toString()}</p>
-              <p>Aksi Terakhir: {["-", "Attack", "Defend", "Heal"][opponent.lastAction]}</p>
-            </>
-          ) : (
-            <p>-</p>
-          )}
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Lawan</h2>
+          <p>{opponent ? opponent.opponent : "-"}</p>
+          <p>HP: {opponent ? opponent.hp?.toString() : "-"}</p>
         </div>
       </div>
     </div>
