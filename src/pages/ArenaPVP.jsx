@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESS } from "../utils/constants";
 import { contractABI } from "../utils/contractABI";
-import GameStatus from "../components/GameStatus"; // ✅ Tambahkan ini
+import GameStatus from "../components/ui/GameStatus"; // ✅ Tambahkan ini
 import { useNavigate } from "react-router-dom";
 
 const ArenaPVP = () => {
