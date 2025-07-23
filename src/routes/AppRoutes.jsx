@@ -12,9 +12,9 @@ const AppRoutes = () => {
       <Route path="/" element={<Home />} />
       <Route path="/pvp" element={<ArenaPVP />} />
       <Route path="/pve" element={<ArenaPVE />} />
-      <Route path="/join-pvp" element={<PVPJoin />} /> {/* ✅ route baru */}
-      <Route path="/battle" element={<BattlePVP />} />
-      <Route path="*" element={<NotFound />} /> {/* Tambahkan ini */}
+      <Route path="/join-pvp" element={<JoinPVP />} /> {/* ✅ diperbaiki */}
+      <Route path="/battle-pvp" element={<BattlePVP />} /> {/* disesuaikan juga */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };
