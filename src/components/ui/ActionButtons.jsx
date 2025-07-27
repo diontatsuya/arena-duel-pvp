@@ -1,28 +1,24 @@
-import React from "react";
-
-const ActionButtons = ({ onAction, isDisabled }) => {
+// src/components/ui/ActionButtons.jsx
+const ActionButtons = ({ onAction }) => {
   return (
-    <div className="flex justify-center mt-4 space-x-4">
+    <div className="flex justify-center space-x-4 mt-4">
       <button
-        onClick={() => onAction("attack")}
-        disabled={isDisabled}
-        className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+        onClick={() => onAction(1)}
+        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition"
       >
-        Attack
+        Serang
       </button>
       <button
-        onClick={() => onAction("defend")}
-        disabled={isDisabled}
-        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+        onClick={() => onAction(2)}
+        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
       >
-        Defend
+        Bertahan
       </button>
       <button
-        onClick={() => onAction("heal")}
-        disabled={isDisabled}
-        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+        onClick={() => onAction(3)}
+        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition"
       >
-        Heal
+        Pulihkan
       </button>
     </div>
   );
