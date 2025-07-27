@@ -19,7 +19,7 @@ const GameStatus = () => {
         const signer = await provider.getSigner();
         const address = await signer.getAddress();
         const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-        const player = await contract.players(address);
+        const player = await contract.getPlayerStatus(address);
 
         setPlayerStatus(player);
 
