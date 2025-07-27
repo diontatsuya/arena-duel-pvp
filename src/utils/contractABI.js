@@ -1,5 +1,4 @@
-export const contractABI = [
-[
+export const contractABI =[
 {
 "anonymous": false,
 "inputs": [
@@ -193,7 +192,6 @@ export const contractABI = [
 ],
 "stateMutability": "view",
 "type": "function"
-}
-]
 
+}
 ];
