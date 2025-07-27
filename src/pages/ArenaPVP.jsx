@@ -1,133 +1,139 @@
-// src/pages/ArenaPVP.jsx
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import { CONTRACT_ADDRESS } from "../utils/constants";
-import { contractABI } from "../utils/contractABI";
+import GameStatus from "../components/ui/GameStatus";
 import ActionButtons from "../components/ui/ActionButtons";
+import { contractABI } from "../utils/contractABI";
+import { CONTRACT_ADDRESS } from "../utils/constants";
 
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
-  const [playerData, setPlayerData] = useState(null);
-  const [opponentData, setOpponentData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState("Belum terhubung");
+  const [address, setAddress] = useState(null);
+  const [status, setStatus] = useState({
+    myHp: 100,
+    myLastAction: "None",
+    opponentHp: 100,
+    opponentLastAction: "None",
+    isMyTurn: false,
+  });
 
+  // Hubungkan wallet saat pertama kali
   useEffect(() => {
     const init = async () => {
       if (window.ethereum) {
-        const tempProvider = new ethers.BrowserProvider(window.ethereum);
-        const tempSigner = await tempProvider.getSigner();
-        const tempContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, tempSigner);
+        const newProvider = new ethers.BrowserProvider(window.ethereum);
+        const newSigner = await newProvider.getSigner();
+        const newContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, newSigner);
+        const newAddress = await newSigner.getAddress();
 
-        setProvider(tempProvider);
-        setSigner(tempSigner);
-        setContract(tempContract);
-        setStatus("Terhubung");
-      } else {
-        setStatus("Wallet tidak ditemukan");
+        setProvider(newProvider);
+        setSigner(newSigner);
+        setContract(newContract);
+        setAddress(newAddress);
       }
     };
     init();
   }, []);
 
-  const getPlayerData = async (address) => {
-    const data = await contract.players(address);
-    return {
-      opponent: data.opponent,
-      hp: parseInt(data.hp),
-      isTurn: data.isTurn,
-      lastAction: Number(data.lastAction),
-    };
-  };
-
-  const fetchGameState = async () => {
-    const address = await signer.getAddress();
-    const data = await getPlayerData(address);
-
-    let opponent = null;
-    if (data.opponent && data.opponent !== ethers.ZeroAddress) {
-      opponent = await getPlayerData(data.opponent);
+  const joinGame = async () => {
+    if (!contract) return;
+    try {
+      const tx = await contract.joinGame();
+      await tx.wait();
+      fetchGameStatus();
+    } catch (err) {
+      console.error("Join Game Failed:", err);
     }
-
-    setPlayerData(data);
-    setOpponentData(opponent);
-    setLoading(false);
   };
 
-  const joinMatch = async () => {
-    setStatus("Menunggu lawan...");
-    const tx = await contract.joinGame();
-    await tx.wait();
-    setStatus("Bertarung!");
-    fetchGameState();
+  const fetchGameStatus = async () => {
+    if (!contract || !address) return;
+    try {
+      const player = await contract.players(address);
+      const opponentAddr = player.opponent;
+
+      let opponent = {
+        hp: 100,
+        lastAction: "None",
+      };
+
+      if (opponentAddr !== ethers.ZeroAddress) {
+        const opp = await contract.players(opponentAddr);
+        opponent = {
+          hp: Number(opp.hp),
+          lastAction: Object.keys(Action)[opp.lastAction] || "None",
+        };
+      }
+
+      setStatus({
+        myHp: Number(player.hp),
+        myLastAction: Object.keys(Action)[player.lastAction] || "None",
+        opponentHp: opponent.hp,
+        opponentLastAction: opponent.lastAction,
+        isMyTurn: player.isTurn,
+      });
+    } catch (err) {
+      console.error("Fetch Game Status Failed:", err);
+    }
   };
 
   const handleAction = async (action) => {
-    const tx = await contract.performAction(action); // 1: attack, 2: defend, 3: heal
-    await tx.wait();
-    fetchGameState();
+    if (!contract || !status.isMyTurn) return;
+
+    try {
+      let tx;
+      if (action === "attack") {
+        tx = await contract.attack();
+      } else if (action === "defend") {
+        tx = await contract.defend();
+      } else if (action === "heal") {
+        tx = await contract.heal();
+      }
+
+      if (tx) {
+        await tx.wait();
+        fetchGameStatus();
+      }
+    } catch (err) {
+      console.error(`Action ${action} failed:`, err);
+    }
   };
 
   useEffect(() => {
-    if (contract && signer) {
-      fetchGameState();
-    }
-  }, [contract, signer]);
+    if (contract && address) {
+      fetchGameStatus();
 
-  // Poll update jika bukan giliran kita
-  useEffect(() => {
-    if (playerData && !playerData.isTurn) {
-      const interval = setInterval(() => {
-        fetchGameState();
-      }, 5000);
+      const interval = setInterval(fetchGameStatus, 5000); // update setiap 5 detik
       return () => clearInterval(interval);
     }
-  }, [playerData]);
+  }, [contract, address]);
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-gray-800 rounded-xl shadow-lg mt-6">
-      <h1 className="text-3xl font-bold text-center mb-4 text-yellow-400">Arena PvP</h1>
-      <p className="text-center text-gray-300 mb-6">Status: {status}</p>
-      <div className="flex justify-center mb-4">
+    <div className="p-4 max-w-xl mx-auto space-y-4">
+      <div className="text-center text-2xl font-bold">Arena PvP</div>
+      <p className="text-center">
+        Status: {status.opponentHp === 100 ? "Menunggu lawan..." : status.isMyTurn ? "Giliranmu!" : "Menunggu giliran lawan..."}
+      </p>
+      {!status.opponentHp && (
         <button
-          onClick={joinMatch}
-          className="px-6 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg transition"
+          onClick={joinGame}
+          className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded"
         >
           Gabung PvP
         </button>
-      </div>
-
-      {loading ? (
-        <p className="text-center text-gray-300">Memuat data...</p>
-      ) : (
-        <>
-          {!opponentData ? (
-            <p className="text-center text-yellow-300">Menunggu lawan bergabung...</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <h2 className="text-xl font-bold text-white mb-2">Kamu</h2>
-                <p>HP: {playerData.hp}</p>
-                <p>Last Action: {["None", "Attack", "Defend", "Heal"][playerData.lastAction] ?? "Unknown"}</p>
-                <p className="text-green-400">{playerData.isTurn ? "Giliranmu!" : "Menunggu lawan..."}</p>
-              </div>
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <h2 className="text-xl font-bold text-white mb-2">Lawan</h2>
-                <p>HP: {opponentData.hp}</p>
-                <p>Last Action: {["None", "Attack", "Defend", "Heal"][opponentData.lastAction] ?? "Unknown"}</p>
-              </div>
-            </div>
-          )}
-
-          {playerData?.isTurn && opponentData && (
-            <ActionButtons onAction={handleAction} />
-          )}
-        </>
       )}
+      <GameStatus status={status} />
+      <ActionButtons onAction={handleAction} isDisabled={!status.isMyTurn} />
     </div>
   );
+};
+
+const Action = {
+  None: 0,
+  Attack: 1,
+  Defend: 2,
+  Heal: 3,
 };
 
 export default ArenaPVP;
