@@ -1,110 +1,79 @@
 import { useEffect, useState } from "react";
-import { contractABI } from "../../utils/contractABI";
-import { CONTRACT_ADDRESS } from "../../utils/constants";
-import { ethers } from "ethers";
 
-const GameStatus = ({ signer, playerAddress }) => {
-  const [status, setStatus] = useState({
-    hp: 100,
-    lastAction: 0,
-    isTurn: false,
-  });
-  const [opponentStatus, setOpponentStatus] = useState({
-    hp: 100,
-    lastAction: 0,
-    isTurn: false,
-  });
-  const [gameOver, setGameOver] = useState(false);
-  const [winner, setWinner] = useState("");
+const GameStatus = ({ contract, address }) => {
+  const [player, setPlayer] = useState(null);
+  const [opponent, setOpponent] = useState(null);
+  const [isTurn, setIsTurn] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!signer || !playerAddress) return;
+  const fetchStatus = async () => {
+    if (!contract || !address) return;
 
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
-
-    const fetchStatus = async () => {
-      try {
-        const playerStat = await contract.getPlayerStatus(playerAddress);
-        const playerInfo = await contract.players(playerAddress);
-        const opponentStat = await contract.getPlayerStatus(playerInfo.opponent);
-
-        setStatus(playerStat);
-        setOpponentStatus(opponentStat);
-
-        if (!gameOver) {
-          if (playerStat.hp === 0 && opponentStat.hp === 0) {
-            setGameOver(true);
-            setWinner("Draw");
-          } else if (playerStat.hp === 0) {
-            setGameOver(true);
-            setWinner("Lawan Menang");
-          } else if (opponentStat.hp === 0) {
-            setGameOver(true);
-            setWinner("Kamu Menang");
-          }
-        }
-      } catch (err) {
-        console.error("Gagal ambil status:", err);
+    try {
+      const data = await contract.players(address);
+      setPlayer(data);
+      if (data.opponent !== "0x0000000000000000000000000000000000000000") {
+        const opp = await contract.players(data.opponent);
+        setOpponent(opp);
+      } else {
+        setOpponent(null);
       }
-    };
 
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 3000);
-    return () => clearInterval(interval);
-  }, [signer, playerAddress, gameOver]);
+      setIsTurn(data.isTurn);
+      setLoading(false);
 
-  const actionToString = (action) => {
-    switch (action) {
-      case 1:
-        return "Attack";
-      case 2:
-        return "Defend";
-      case 3:
-        return "Heal";
-      default:
-        return "None";
+      // Cek kemenangan
+      if (data.hp === 0) {
+        setStatusMessage("😵 Kamu kalah! Menunggu reset...");
+        await contract.resetGame();
+      } else if (opponent && opponent.hp === 0) {
+        setStatusMessage("🏆 Kamu menang! Menunggu reset...");
+        await contract.resetGame();
+      } else if (data.opponent === "0x0000000000000000000000000000000000000000") {
+        setStatusMessage("🔍 Menunggu lawan...");
+      } else {
+        setStatusMessage(data.isTurn ? "🎯 Giliran kamu!" : "⏳ Menunggu giliran lawan...");
+      }
+    } catch (err) {
+      console.error(err);
+      setStatusMessage("Gagal memuat status.");
     }
   };
 
-  const handleReload = () => {
-    window.location.reload();
+  const handleAction = async (action) => {
+    if (!contract || !address) return;
+    try {
+      const tx = await contract.takeTurn(action);
+      await tx.wait();
+      await fetchStatus();
+    } catch (err) {
+      console.error("Gagal mengambil aksi:", err);
+    }
   };
 
+  useEffect(() => {
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 3000);
+    return () => clearInterval(interval);
+  }, [contract, address]);
+
+  if (loading) return <div>⏳ Memuat status...</div>;
+
   return (
-    <div className="text-center mt-8 space-y-4">
-      <h2 className="text-xl font-semibold">Arena Duel PvP</h2>
+    <div className="bg-gray-800 p-4 rounded-xl shadow-lg">
+      <h2 className="text-xl font-semibold mb-2">Status Pertandingan</h2>
+      <p><strong>Kamu:</strong> {player?.hp ?? "-"} HP</p>
+      <p><strong>Lawan:</strong> {opponent?.hp ?? "?"} HP</p>
+      <p className="mt-2 text-yellow-400">{statusMessage}</p>
 
-      <div className="mt-4 p-4 bg-gray-800 rounded-xl shadow-md">
-        <h3 className="text-lg font-bold mb-2">Kamu</h3>
-        <p>{status.hp} / 100</p>
-        <p>Last Action: {actionToString(status.lastAction)}</p>
-      </div>
-
-      {!gameOver && (
-        <p className="text-yellow-400 font-medium">
-          {status.isTurn ? "Giliran kamu!" : "Menunggu giliran..."}
-        </p>
-      )}
-
-      {gameOver && (
-        <div className="mt-4 text-red-400 font-semibold">
-          <p>🎮 Game selesai!</p>
-          <p className="text-lg">{winner}</p>
-          <button
-            onClick={handleReload}
-            className="mt-2 px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
-          >
-            Mulai Ulang
-          </button>
+      {isTurn && (
+        <div className="mt-4 flex gap-2">
+          <button onClick={() => handleAction(1)} className="px-3 py-1 bg-red-600 rounded hover:bg-red-700">Attack</button>
+          <button onClick={() => handleAction(2)} className="px-3 py-1 bg-green-600 rounded hover:bg-green-700">Defend</button>
+          <button onClick={() => handleAction(3)} className="px-3 py-1 bg-blue-600 rounded hover:bg-blue-700">Heal</button>
         </div>
       )}
-
-      <div className="mt-4 p-4 bg-gray-800 rounded-xl shadow-md">
-        <h3 className="text-lg font-bold mb-2">Lawan</h3>
-        <p>{opponentStatus.hp} / 100</p>
-        <p>Last Action: {actionToString(opponentStatus.lastAction)}</p>
-      </div>
     </div>
   );
 };
