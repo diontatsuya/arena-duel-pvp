@@ -1,7 +1,5 @@
 import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-// import victorySound from "../assets/audio/victory.mp3";
-// import defeatSound from "../assets/audio/defeat.mp3";
 
 const GameOverModal = ({ isOpen, winner, playerAddress, onRestart }) => {
   const isPlayerWinner = winner?.toLowerCase() === playerAddress?.toLowerCase();
