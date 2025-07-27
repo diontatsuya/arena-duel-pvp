@@ -1,57 +1,88 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESS } from "../../utils/constants";
 import { contractABI } from "../../utils/contractABI";
 
 const GameStatus = () => {
-  const [playerStatus, setPlayerStatus] = useState(null);
-  const [opponentAddress, setOpponentAddress] = useState(null);
-  const [error, setError] = useState("");
-  const navigate = useNavigate();
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [contract, setContract] = useState(null);
+  const [player, setPlayer] = useState({});
+  const [opponent, setOpponent] = useState({});
+  const [isPlayerTurn, setIsPlayerTurn] = useState(false);
+
+  const ACTIONS = ["None", "Attack", "Defend", "Heal"];
+
+  const fetchPlayerStatus = async () => {
+    try {
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      const playerData = await contract.players(accounts[0]);
+      const opponentData = await contract.players(playerData.opponent);
+
+      setPlayer({
+        hp: playerData.hp.toNumber(),
+        lastAction: ACTIONS[playerData.lastAction],
+      });
+
+      setOpponent({
+        hp: opponentData.hp.toNumber(),
+        lastAction: ACTIONS[opponentData.lastAction],
+      });
+
+      setIsPlayerTurn(playerData.isTurn);
+    } catch (error) {
+      console.error("Failed to fetch player status:", error);
+    }
+  };
 
   useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        if (!window.ethereum) throw new Error("Wallet tidak ditemukan");
+    const init = async () => {
+      if (window.ethereum) {
+        const tempProvider = new ethers.BrowserProvider(window.ethereum);
+        const tempSigner = await tempProvider.getSigner();
+        const tempContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, tempSigner);
 
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-        const player = await contract.getPlayerStatus(address);
-
-        setPlayerStatus(player);
-
-        if (player.opponent !== ethers.ZeroAddress) {
-          setOpponentAddress(player.opponent);
-          navigate("/battle");
-        }
-      } catch (err) {
-        setError(err.message);
+        setProvider(tempProvider);
+        setSigner(tempSigner);
+        setContract(tempContract);
       }
     };
+    init();
+  }, []);
 
-    checkStatus();
-    const interval = setInterval(checkStatus, 3000); // polling setiap 3 detik
+  useEffect(() => {
+    if (contract) {
+      fetchPlayerStatus(); // initial fetch
 
-    return () => clearInterval(interval);
-  }, [navigate]);
+      const interval = setInterval(() => {
+        fetchPlayerStatus(); // fetch periodically
+      }, 3000); // every 3 seconds
+
+      return () => clearInterval(interval); // cleanup
+    }
+  }, [contract]);
 
   return (
-    <div className="text-center mt-10">
-      <h2 className="text-xl font-semibold mb-2">Status Permainan</h2>
-      {error && <p className="text-red-500">{error}</p>}
+    <div className="p-4 bg-gray-800 rounded-lg shadow-md w-full max-w-md mx-auto text-center">
+      <h2 className="text-xl font-bold mb-4 text-yellow-300">Arena Duel PvP</h2>
 
-      {playerStatus ? (
-        playerStatus.opponent === ethers.ZeroAddress ? (
-          <p className="text-yellow-400">Menunggu lawan bergabung...</p>
-        ) : (
-          <p className="text-green-400">Lawan ditemukan! Mengalihkan ke battle...</p>
-        )
-      ) : (
-        <p className="text-gray-300">Memeriksa status permainan...</p>
-      )}
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold">Kamu</h3>
+        <p className="text-green-400">HP: {player.hp ?? "?"} / 100</p>
+        <p>Last Action: {player.lastAction ?? "?"}</p>
+      </div>
+
+      <div className="mb-4">
+        <p className="text-sm italic">
+          {isPlayerTurn ? "Giliran kamu!" : "Menunggu giliran..."}
+        </p>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold">Lawan</h3>
+        <p className="text-red-400">HP: {opponent.hp ?? "?"} / 100</p>
+        <p>Last Action: {opponent.lastAction ?? "?"}</p>
+      </div>
     </div>
   );
 };
