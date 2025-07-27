@@ -42,7 +42,7 @@ const ArenaPVP = () => {
     if (!contract || !account) return;
     try {
       setIsLoading(true);
-      const tx = await contract.joinMatch();
+      const tx = await contract.joinGame();
       await tx.wait();
       setStatus("Bergabung ke pertandingan...");
       await fetchStatus();
