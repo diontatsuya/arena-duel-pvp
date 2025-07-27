@@ -1,92 +1,118 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
+import { CONTRACT_ADDRESS } from "../utils/constants";
+import { contractABI } from "../utils/contractABI";
+import HealthBar from "../components/ui/HealthBar";
 
-const BattlePVP = ({ contract, signer }) => {
-  const [player, setPlayer] = useState(null);
-  const [opponent, setOpponent] = useState(null);
-  const [turn, setTurn] = useState(false);
-  const [status, setStatus] = useState("");
-  const [lastAction, setLastAction] = useState("");
+const BattlePVP = () => {
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [contract, setContract] = useState(null);
+  const [playerData, setPlayerData] = useState(null);
+  const [opponentData, setOpponentData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [actionPending, setActionPending] = useState(false);
 
-  const fetchGameState = async () => {
-    const account = await signer.getAddress();
-    const playerData = await contract.players(account);
-    const opponentData = await contract.players(playerData.opponent);
-
-    setPlayer({
-      hp: playerData.hp.toNumber(),
-      lastAction: playerData.lastAction,
-    });
-    setOpponent({
-      hp: opponentData.hp.toNumber(),
-      lastAction: opponentData.lastAction,
-    });
-    setTurn(playerData.isTurn);
+  const getPlayerData = async (userAddress) => {
+    const player = await contract.players(userAddress);
+    return {
+      opponent: player.opponent,
+      hp: parseInt(player.hp),
+      isTurn: player.isTurn,
+      lastAction: player.lastAction,
+    };
   };
 
-  useEffect(() => {
-    fetchGameState();
-  }, []);
+  const fetchGameState = async () => {
+    const address = await signer.getAddress();
+    const data = await getPlayerData(address);
+    const opponent = await getPlayerData(data.opponent);
+    setPlayerData(data);
+    setOpponentData(opponent);
+    setLoading(false);
+  };
 
-  const doAction = async (actionType) => {
+  const handleAction = async (actionType) => {
+    if (!contract || actionPending) return;
+    setActionPending(true);
     try {
-      setStatus(`Melakukan aksi ${actionType}...`);
-      let tx;
-      if (actionType === "attack") {
-        tx = await contract.attack();
-      } else if (actionType === "defend") {
-        tx = await contract.defend();
-      } else if (actionType === "heal") {
-        tx = await contract.heal();
-      }
+      const tx = await contract.performAction(actionType);
       await tx.wait();
-      setStatus("Aksi selesai!");
-      fetchGameState();
+      await fetchGameState();
     } catch (err) {
-      console.error(err);
-      setStatus("Gagal melakukan aksi.");
+      console.error("Action failed", err);
+    } finally {
+      setActionPending(false);
     }
   };
 
-  if (!player || !opponent) return <p className="text-center mt-10">Memuat data game...</p>;
+  useEffect(() => {
+    const init = async () => {
+      if (window.ethereum) {
+        const prov = new ethers.BrowserProvider(window.ethereum);
+        const signer = await prov.getSigner();
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+        setProvider(prov);
+        setSigner(signer);
+        setContract(contract);
+      }
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    if (signer && contract) {
+      fetchGameState();
+    }
+  }, [signer, contract]);
+
+  if (loading || !playerData || !opponentData) {
+    return <div className="text-center mt-10 text-white">Loading battle...</div>;
+  }
 
   return (
-    <div className="text-center mt-10">
-      <h2 className="text-2xl font-bold mb-4">Arena PvP: Pertarungan Berlangsung</h2>
-      <div className="mb-4">
-        <p className="text-lg">Kamu (HP: {player.hp})</p>
-        <p className="text-sm text-gray-400">Aksi terakhir: {player.lastAction}</p>
+    <div className="p-6 text-white">
+      <h1 className="text-2xl font-bold text-center mb-6">Arena Duel PvP</h1>
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div>
+          <h2 className="text-lg font-semibold">Kamu</h2>
+          <HealthBar hp={playerData.hp} />
+          <p>Last Action: {["None", "Attack", "Defend", "Heal"][playerData.lastAction]}</p>
+          <p>{playerData.isTurn ? "🎯 Giliranmu!" : "Menunggu giliran..."}</p>
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold">Lawan</h2>
+          <HealthBar hp={opponentData.hp} />
+          <p>Last Action: {["None", "Attack", "Defend", "Heal"][opponentData.lastAction]}</p>
+        </div>
       </div>
-      <div className="mb-4">
-        <p className="text-lg">Lawan (HP: {opponent.hp})</p>
-        <p className="text-sm text-gray-400">Aksi terakhir: {opponent.lastAction}</p>
-      </div>
-      <p className="mb-2 font-bold">
-        {turn ? "Giliran kamu!" : "Menunggu giliran lawan..."}
-      </p>
-      {turn && (
-        <div className="space-x-2">
+
+      {playerData.isTurn && (
+        <div className="flex justify-center gap-4">
           <button
-            onClick={() => doAction("attack")}
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-white"
+            onClick={() => handleAction(1)}
+            disabled={actionPending}
+            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl"
           >
-            Serang
+            Attack
           </button>
           <button
-            onClick={() => doAction("defend")}
-            className="bg-yellow-500 hover:bg-yellow-600 px-4 py-2 rounded text-white"
+            onClick={() => handleAction(2)}
+            disabled={actionPending}
+            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl"
           >
-            Bertahan
+            Defend
           </button>
           <button
-            onClick={() => doAction("heal")}
-            className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-white"
+            onClick={() => handleAction(3)}
+            disabled={actionPending}
+            className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-xl"
           >
-            Pulihkan
+            Heal
           </button>
         </div>
       )}
-      <p className="mt-4">{status}</p>
     </div>
   );
 };
