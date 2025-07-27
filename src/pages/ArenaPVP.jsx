@@ -8,109 +8,104 @@ const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
-  const [account, setAccount] = useState(null);
+  const [player, setPlayer] = useState(null);
+  const [opponent, setOpponent] = useState(null);
   const [status, setStatus] = useState("Belum terhubung");
-  const [playerData, setPlayerData] = useState(null);
-  const [opponentData, setOpponentData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [account, setAccount] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Hubungkan wallet
   const connectWallet = async () => {
+    if (!window.ethereum) return alert("MetaMask tidak ditemukan");
     try {
-      if (window.ethereum) {
-        const tempProvider = new ethers.BrowserProvider(window.ethereum);
-        const tempSigner = await tempProvider.getSigner();
-        const accounts = await tempProvider.send("eth_requestAccounts", []);
-        const tempContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, tempSigner);
-
-        setProvider(tempProvider);
-        setSigner(tempSigner);
-        setContract(tempContract);
-        setAccount(accounts[0]);
-        setStatus("Terhubung");
-      } else {
-        alert("MetaMask tidak ditemukan!");
-      }
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      const selectedAccount = accounts[0];
+      setAccount(selectedAccount);
+      const tempProvider = new ethers.BrowserProvider(window.ethereum);
+      const tempSigner = await tempProvider.getSigner();
+      const tempContract = new ethers.Contract(
+        CONTRACT_ADDRESS,
+        contractABI,
+        tempSigner
+      );
+      setProvider(tempProvider);
+      setSigner(tempSigner);
+      setContract(tempContract);
+      setStatus("Terhubung");
     } catch (error) {
       console.error("Gagal menghubungkan wallet:", error);
     }
   };
 
-  // Gabung PvP
-  const handleJoinMatch = async () => {
-    if (!contract || !account) {
-      alert("Hubungkan wallet terlebih dahulu.");
-      return;
-    }
-
+  const joinMatch = async () => {
+    if (!contract || !account) return;
     try {
-      setLoading(true);
+      setIsLoading(true);
       const tx = await contract.joinMatch();
       await tx.wait();
       setStatus("Bergabung ke pertandingan...");
-      fetchPlayerData();
-    } catch (err) {
-      console.error("Gagal join match:", err);
-      alert("Gagal join match.");
+      await fetchStatus();
+    } catch (error) {
+      console.error("Gagal bergabung ke pertandingan:", error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const fetchPlayerData = async () => {
+  const fetchStatus = async () => {
     if (!contract || !account) return;
-
     try {
-      const player = await contract.players(account);
-      setPlayerData(player);
-
-      if (player.opponent !== ethers.ZeroAddress) {
-        const opponent = await contract.players(player.opponent);
-        setOpponentData(opponent);
-        setStatus("Bertanding!");
+      const playerData = await contract.players(account);
+      setPlayer(playerData);
+      if (
+        playerData.opponent !== ethers.ZeroAddress &&
+        playerData.opponent !== account
+      ) {
+        const opponentData = await contract.players(playerData.opponent);
+        setOpponent(opponentData);
+        setStatus("Bertanding");
       } else {
         setStatus("Menunggu lawan...");
       }
-    } catch (err) {
-      console.error("Gagal mengambil data pemain:", err);
+    } catch (error) {
+      console.error("Gagal mengambil status:", error);
     }
   };
 
-  // Ambil data saat wallet berubah
   useEffect(() => {
     if (account && contract) {
-      fetchPlayerData();
+      fetchStatus();
     }
   }, [account, contract]);
 
   return (
-    <div className="p-4 max-w-xl mx-auto text-center">
+    <div className="flex flex-col items-center mt-10 text-center">
       <h1 className="text-3xl font-bold mb-4">Arena PvP</h1>
-
-      <p className="mb-2">Status: <span className="font-semibold">{status}</span></p>
+      <p className="mb-6">Status: {status}</p>
 
       {!account ? (
         <button
           onClick={connectWallet}
-          className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded"
+          className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg"
         >
           Hubungkan Wallet
         </button>
-      ) : (
+      ) : status === "Belum terhubung" ||
+        status === "Menunggu lawan..." ||
+        status === "Bergabung ke pertandingan..." ? (
         <button
-          onClick={handleJoinMatch}
-          disabled={loading}
-          className={`bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded ${loading && "opacity-50"}`}
+          onClick={joinMatch}
+          className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg disabled:opacity-50"
+          disabled={isLoading || status === "Bertanding"}
         >
-          {loading ? "Memproses..." : "Gabung PvP"}
+          Gabung PvP
         </button>
-      )}
+      ) : null}
 
-      <GameStatus
-        account={account}
-        playerData={playerData}
-        opponentData={opponentData}
-      />
+      {status === "Bertanding" && (
+        <GameStatus player={player} opponent={opponent} />
+      )}
     </div>
   );
 };
