@@ -14,6 +14,8 @@ const GameStatus = ({ signer, playerAddress }) => {
     lastAction: 0,
     isTurn: false,
   });
+  const [gameOver, setGameOver] = useState(false);
+  const [winner, setWinner] = useState("");
 
   useEffect(() => {
     if (!signer || !playerAddress) return;
@@ -22,26 +24,35 @@ const GameStatus = ({ signer, playerAddress }) => {
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
 
     const fetchStatus = async () => {
-      const status = await contract.getPlayerStatus(playerAddress);
-      const opponent = await contract.players(playerAddress);
-      const opponentStatus = await contract.getPlayerStatus(opponent.opponent);
+      try {
+        const playerStat = await contract.getPlayerStatus(playerAddress);
+        const playerInfo = await contract.players(playerAddress);
+        const opponentStat = await contract.getPlayerStatus(playerInfo.opponent);
 
-      setStatus(status);
-      setOpponentStatus(opponentStatus);
+        setStatus(playerStat);
+        setOpponentStatus(opponentStat);
 
-      // Notifikasi menang/kalah
-      if (status.hp === 0) {
-        alert("Kamu KALAH!");
-      } else if (opponentStatus.hp === 0) {
-        alert("Kamu MENANG!");
+        if (!gameOver) {
+          if (playerStat.hp === 0 && opponentStat.hp === 0) {
+            setGameOver(true);
+            setWinner("Draw");
+          } else if (playerStat.hp === 0) {
+            setGameOver(true);
+            setWinner("Lawan Menang");
+          } else if (opponentStat.hp === 0) {
+            setGameOver(true);
+            setWinner("Kamu Menang");
+          }
+        }
+      } catch (err) {
+        console.error("Gagal ambil status:", err);
       }
     };
 
     fetchStatus();
-
     const interval = setInterval(fetchStatus, 3000);
     return () => clearInterval(interval);
-  }, [signer, playerAddress]);
+  }, [signer, playerAddress, gameOver]);
 
   const actionToString = (action) => {
     switch (action) {
@@ -56,6 +67,10 @@ const GameStatus = ({ signer, playerAddress }) => {
     }
   };
 
+  const handleReload = () => {
+    window.location.reload();
+  };
+
   return (
     <div className="text-center mt-8 space-y-4">
       <h2 className="text-xl font-semibold">Arena Duel PvP</h2>
@@ -66,9 +81,24 @@ const GameStatus = ({ signer, playerAddress }) => {
         <p>Last Action: {actionToString(status.lastAction)}</p>
       </div>
 
-      <p className="text-yellow-400 font-medium">
-        {status.isTurn ? "Giliran kamu!" : "Menunggu giliran..."}
-      </p>
+      {!gameOver && (
+        <p className="text-yellow-400 font-medium">
+          {status.isTurn ? "Giliran kamu!" : "Menunggu giliran..."}
+        </p>
+      )}
+
+      {gameOver && (
+        <div className="mt-4 text-red-400 font-semibold">
+          <p>🎮 Game selesai!</p>
+          <p className="text-lg">{winner}</p>
+          <button
+            onClick={handleReload}
+            className="mt-2 px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
+          >
+            Mulai Ulang
+          </button>
+        </div>
+      )}
 
       <div className="mt-4 p-4 bg-gray-800 rounded-xl shadow-md">
         <h3 className="text-lg font-bold mb-2">Lawan</h3>
