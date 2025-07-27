@@ -24,13 +24,12 @@ const ArenaPVP = () => {
 
         try {
           const userAddress = await _signer.getAddress();
-          const playerStatus = await _contract.getStatus(userAddress);
+          const player = await _contract.getPlayerStatus(userAddress);
 
-          // Status:
-          // 0 = Belum bergabung
-          // 1 = Menunggu lawan
-          // 2 = Sedang bertarung
-          if (playerStatus === 2) {
+          // Status berdasarkan player struct:
+          // player.opponent = address(0) berarti belum bertarung
+          // player.isTurn = true/false menunjukkan apakah sedang bertarung
+          if (player.opponent !== ethers.ZeroAddress) {
             setStatus("battle");
           } else {
             setStatus("join");
