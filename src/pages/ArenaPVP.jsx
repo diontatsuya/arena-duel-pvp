@@ -64,10 +64,26 @@ const ArenaPVP = () => {
   useEffect(() => {
     if (contract && signer) {
       fetchStatuses();
-      const interval = setInterval(fetchStatuses, 3000); // real-time refresh setiap 3 detik
+      const interval = setInterval(fetchStatuses, 3000);
       return () => clearInterval(interval);
     }
   }, [contract, signer]);
+
+  // ⛳️ Cek kondisi menang/kalah/seri
+  useEffect(() => {
+    if (status && opponentStatus) {
+      if (status.hp === 0 && opponentStatus.hp === 0) {
+        alert("Permainan berakhir seri!");
+        // window.location.reload(); // opsional
+      } else if (status.hp === 0) {
+        alert("Kamu kalah!");
+        // window.location.reload(); // opsional
+      } else if (opponentStatus.hp === 0) {
+        alert("Kamu menang!");
+        // window.location.reload(); // opsional
+      }
+    }
+  }, [status, opponentStatus]);
 
   const renderStatus = (title, data) => {
     if (!data) return null;
