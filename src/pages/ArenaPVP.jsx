@@ -10,6 +10,12 @@ const ACTIONS = {
   heal: 2,
 };
 
+const ACTIONS_REVERSE = {
+  "0": "Serang",
+  "1": "Bertahan",
+  "2": "Heal",
+};
+
 const ArenaPVP = () => {
   const [account, setAccount] = useState(null);
   const [provider, setProvider] = useState(null);
@@ -21,7 +27,6 @@ const ArenaPVP = () => {
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Hubungkan wallet dan setup provider, signer, contract
   const connectWallet = async () => {
     if (window.ethereum) {
       const provider = new ethers.BrowserProvider(window.ethereum);
@@ -37,13 +42,14 @@ const ArenaPVP = () => {
   };
 
   const joinMatch = async () => {
+    if (!contract) return;
     try {
       setIsLoading(true);
-      const tx = await contract.join();
+      const tx = await contract.joinGame(); // ✅ Perbaikan disini
       await tx.wait();
       await fetchGameData();
     } catch (error) {
-      console.error("Error join:", error);
+      console.error("Error joinGame:", error);
     } finally {
       setIsLoading(false);
     }
@@ -58,7 +64,6 @@ const ArenaPVP = () => {
 
       setPlayerData(player);
       setOpponentData(opponent);
-
       setIsWaiting(player.opponent === ethers.ZeroAddress);
       setIsMyTurn(player.isTurn);
     } catch (err) {
@@ -71,7 +76,7 @@ const ArenaPVP = () => {
 
     try {
       setIsLoading(true);
-      const tx = await contract.takeAction(ACTIONS[action]);
+      const tx = await contract.takeAction(ACTIONS[action]); // ✅ Kirim uint8, bukan string
       await tx.wait();
       await fetchGameData();
     } catch (error) {
@@ -88,8 +93,7 @@ const ArenaPVP = () => {
   useEffect(() => {
     if (contract && account) {
       fetchGameData();
-
-      const interval = setInterval(fetchGameData, 5000); // refresh status
+      const interval = setInterval(fetchGameData, 5000);
       return () => clearInterval(interval);
     }
   }, [contract, account]);
@@ -104,12 +108,12 @@ const ArenaPVP = () => {
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <h2 className="text-xl font-semibold mb-1">Kamu</h2>
-              <p>HP: {playerData?.hp.toString() ?? "-"}</p>
+              <p>HP: {playerData?.hp?.toString() ?? "-"}</p>
               <p>Aksi Terakhir: {ACTIONS_REVERSE[playerData?.lastAction?.toString()] ?? "-"}</p>
             </div>
             <div>
               <h2 className="text-xl font-semibold mb-1">Lawan</h2>
-              <p>HP: {opponentData?.hp.toString() ?? "-"}</p>
+              <p>HP: {opponentData?.hp?.toString() ?? "-"}</p>
               <p>Aksi Terakhir: {ACTIONS_REVERSE[opponentData?.lastAction?.toString()] ?? "-"}</p>
             </div>
           </div>
@@ -139,13 +143,6 @@ const ArenaPVP = () => {
       )}
     </div>
   );
-};
-
-// Untuk mengubah angka ke nama aksi
-const ACTIONS_REVERSE = {
-  "0": "Serang",
-  "1": "Bertahan",
-  "2": "Heal",
 };
 
 export default ArenaPVP;
