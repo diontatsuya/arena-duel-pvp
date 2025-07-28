@@ -40,7 +40,7 @@ const ArenaPVP = () => {
     if (!contract) return;
     setIsLoading(true);
     try {
-      const tx = await contract.joinMatch();
+      const tx = await contract.joinGame();
       await tx.wait();
       setIsJoined(true);
     } catch (err) {
