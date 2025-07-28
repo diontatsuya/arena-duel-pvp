@@ -5,6 +5,13 @@ import { CONTRACT_ADDRESS } from "../utils/constants";
 import GameStatus from "../components/ui/GameStatus";
 import ActionButtons from "../components/ui/ActionButtons";
 
+const ActionEnum = {
+  0: "None",
+  1: "Attack",
+  2: "Defend",
+  3: "Heal",
+};
+
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
@@ -30,6 +37,13 @@ const ArenaPVP = () => {
         setProvider(_provider);
         setSigner(_signer);
         setContract(_contract);
+
+        // Cek apakah sudah bergabung sebelumnya
+        const address = await _signer.getAddress();
+        const player = await _contract.players(address);
+        if (player.opponent !== ethers.ZeroAddress || Number(player.hp) < 100) {
+          setIsJoined(true);
+        }
       }
     };
 
@@ -37,15 +51,29 @@ const ArenaPVP = () => {
   }, []);
 
   const joinMatch = async () => {
-    if (!contract) return;
+    if (!contract || !signer || isLoading) return;
     setIsLoading(true);
+
     try {
+      const address = await signer.getAddress();
+      const player = await contract.players(address);
+
+      if (player.opponent !== ethers.ZeroAddress) {
+        alert("Kamu sudah dalam game aktif. Selesaikan dulu atau tunggu lawan!");
+        setIsJoined(true);
+        await fetchStatus();
+        setIsLoading(false);
+        return;
+      }
+
       const tx = await contract.joinGame();
       await tx.wait();
       setIsJoined(true);
+      await fetchStatus();
     } catch (err) {
       console.error("Join match failed:", err);
     }
+
     setIsLoading(false);
   };
 
@@ -54,13 +82,17 @@ const ArenaPVP = () => {
 
     const address = await signer.getAddress();
     const player = await contract.players(address);
-    const opponent = await contract.players(player.opponent);
+
+    let opponent = { hp: 100, lastAction: 0 };
+    if (player.opponent !== ethers.ZeroAddress) {
+      opponent = await contract.players(player.opponent);
+    }
 
     setStatus({
-      myHp: Number(player.hp),
-      myLastAction: Object.keys(ActionEnum)[player.lastAction] || "None",
-      opponentHp: Number(opponent.hp),
-      opponentLastAction: Object.keys(ActionEnum)[opponent.lastAction] || "None",
+      myHp: Number(player.hp ?? 100),
+      myLastAction: ActionEnum[player.lastAction] || "None",
+      opponentHp: Number(opponent.hp ?? 100),
+      opponentLastAction: ActionEnum[opponent.lastAction] || "None",
     });
 
     setIsMyTurn(player.isTurn);
@@ -89,21 +121,12 @@ const ArenaPVP = () => {
   useEffect(() => {
     if (contract && signer) {
       fetchStatus();
-
       const interval = setInterval(() => {
         fetchStatus();
       }, 5000);
-
       return () => clearInterval(interval);
     }
   }, [contract, signer]);
-
-  const ActionEnum = {
-    0: "None",
-    1: "Attack",
-    2: "Defend",
-    3: "Heal",
-  };
 
   return (
     <div className="p-4">
