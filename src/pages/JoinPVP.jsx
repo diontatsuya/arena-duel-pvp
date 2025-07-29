@@ -15,7 +15,16 @@ const JoinPVP = () => {
 
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+
+      try {
+        // Gabung ke matchmaking saat halaman dimuat
+        await contract.joinGame();
+      } catch (err) {
+        console.error("Gagal join game:", err);
+        setChecking(false);
+        return;
+      }
 
       const interval = setInterval(async () => {
         try {
@@ -25,12 +34,14 @@ const JoinPVP = () => {
             setIsMatched(true);
             setTimeout(() => {
               navigate("/arena-pvp");
-            }, 1500); // jeda sebelum redirect
+            }, 1500);
           }
         } catch (error) {
           console.error("Error checking match status:", error);
+          clearInterval(interval);
+          setChecking(false);
         }
-      }, 3000); // cek tiap 3 detik
+      }, 3000);
 
       return () => clearInterval(interval);
     };
