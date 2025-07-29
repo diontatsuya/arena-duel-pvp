@@ -3,22 +3,32 @@ import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
 
+const ACTIONS = ["-", "Serang", "Bertahan", "Heal"];
+
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
   const [address, setAddress] = useState(null);
+
   const [player, setPlayer] = useState(null);
   const [opponent, setOpponent] = useState(null);
+
   const [status, setStatus] = useState("Menyiapkan...");
   const [isYourTurn, setIsYourTurn] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [winner, setWinner] = useState(null);
   const [txPending, setTxPending] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const init = async () => {
-      if (window.ethereum) {
+      if (!window.ethereum) {
+        setStatus("MetaMask tidak ditemukan");
+        return;
+      }
+
+      try {
         const prov = new ethers.providers.Web3Provider(window.ethereum);
         const sign = prov.getSigner();
         const addr = await sign.getAddress();
@@ -28,16 +38,21 @@ const ArenaPVP = () => {
         setSigner(sign);
         setAddress(addr);
         setContract(cont);
+      } catch (err) {
+        setStatus("Gagal menghubungkan wallet");
+        console.error(err);
       }
     };
+
     init();
   }, []);
 
   useEffect(() => {
     if (!contract || !address) return;
-    fetchGameData();
 
-    const interval = setInterval(fetchGameData, 3000);
+    fetchGameData(); // fetch pertama
+
+    const interval = setInterval(fetchGameData, 4000); // polling
     return () => clearInterval(interval);
   }, [contract, address]);
 
@@ -45,29 +60,39 @@ const ArenaPVP = () => {
     try {
       const game = await contract.getPlayerBattle(address);
 
-      if (!game || game.player1 === ethers.constants.AddressZero) {
-        setStatus("Kamu belum bergabung ke pertandingan.");
+      const isEmpty = game.player1 === ethers.constants.AddressZero;
+      const isDone = game.winner !== ethers.constants.AddressZero;
+
+      if (isEmpty) {
+        setStatus("Kamu belum masuk pertandingan.");
         setPlayer(null);
         setOpponent(null);
+        setLoading(false);
         return;
       }
 
-      setPlayer(game.player1 === address ? game.player1Data : game.player2Data);
-      setOpponent(game.player1 === address ? game.player2Data : game.player1Data);
+      // Tetapkan player & lawan
+      const isPlayer1 = game.player1.toLowerCase() === address.toLowerCase();
+      setPlayer(isPlayer1 ? game.player1Data : game.player2Data);
+      setOpponent(isPlayer1 ? game.player2Data : game.player1Data);
 
-      setIsYourTurn(game.turn === address);
-      setGameOver(game.winner !== ethers.constants.AddressZero);
+      setIsYourTurn(game.turn.toLowerCase() === address.toLowerCase());
+      setGameOver(isDone);
       setWinner(game.winner);
 
-      if (game.winner !== ethers.constants.AddressZero) {
+      if (isDone) {
         setStatus("Pertandingan selesai!");
-      } else if (game.player1 !== ethers.constants.AddressZero && game.player2 === ethers.constants.AddressZero) {
-        setStatus("Menunggu lawan...");
+      } else if (game.player2 === ethers.constants.AddressZero) {
+        setStatus("Menunggu lawan bergabung...");
       } else {
-        setStatus(game.turn === address ? "Giliranmu!" : "Menunggu giliran lawan...");
+        setStatus(game.turn.toLowerCase() === address.toLowerCase() ? "Giliran kamu!" : "Menunggu giliran lawan...");
       }
+
+      setLoading(false);
     } catch (error) {
-      console.error("Error fetch game data:", error);
+      console.error("Gagal ambil data pertandingan:", error);
+      setStatus("Gagal ambil status pertandingan.");
+      setLoading(false);
     }
   };
 
@@ -78,10 +103,10 @@ const ArenaPVP = () => {
       setTxPending(true);
       const tx = await contract.performAction(actionType);
       await tx.wait();
-      setTxPending(false);
       fetchGameData();
     } catch (error) {
-      console.error("Error performing action:", error);
+      console.error("Gagal melakukan aksi:", error);
+    } finally {
       setTxPending(false);
     }
   };
@@ -93,7 +118,7 @@ const ArenaPVP = () => {
         {data ? (
           <>
             <p>HP: {data.hp.toString()}</p>
-            <p>Aksi Terakhir: {parseAction(data.lastAction)}</p>
+            <p>Aksi Terakhir: {ACTIONS[Number(data.lastAction)]}</p>
           </>
         ) : (
           <p>Belum ada data.</p>
@@ -102,21 +127,15 @@ const ArenaPVP = () => {
     );
   };
 
-  const parseAction = (code) => {
-    const action = Number(code);
-    if (action === 1) return "Serang";
-    if (action === 2) return "Bertahan";
-    if (action === 3) return "Heal";
-    return "-";
-  };
-
   return (
     <div className="p-6 mx-auto max-w-4xl">
       <h1 className="text-2xl font-bold text-center mb-4">Arena PvP</h1>
       <p className="text-center mb-6">{status}</p>
 
-      {!player && !opponent ? (
+      {loading ? (
         <p className="text-center text-gray-400">Mengambil data pertandingan...</p>
+      ) : !player ? (
+        <p className="text-center text-gray-400">Belum bergabung ke pertandingan.</p>
       ) : (
         <>
           <div className="flex flex-col md:flex-row gap-4">
@@ -140,7 +159,9 @@ const ArenaPVP = () => {
 
           {gameOver && (
             <div className="mt-6 text-center text-xl text-yellow-300">
-              {winner === address ? "🎉 Kamu menang!" : "😢 Kamu kalah!"}
+              {winner?.toLowerCase() === address?.toLowerCase()
+                ? "🎉 Kamu menang!"
+                : "😢 Kamu kalah!"}
             </div>
           )}
         </>
