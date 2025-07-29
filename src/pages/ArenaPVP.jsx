@@ -4,6 +4,8 @@ import { ethers } from "ethers";
 import { CONTRACT_ADDRESS } from "../utils/constants";
 import { contractABI } from "../utils/contractABI";
 
+const SOMNIA_CHAIN_ID = 50312;
+
 const ArenaPVP = () => {
   const navigate = useNavigate();
   const [walletAddress, setWalletAddress] = useState(null);
@@ -11,6 +13,7 @@ const ArenaPVP = () => {
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
   const [isJoining, setIsJoining] = useState(false);
+  const [networkValid, setNetworkValid] = useState(true);
 
   const connectWallet = async () => {
     try {
@@ -19,25 +22,28 @@ const ArenaPVP = () => {
         return;
       }
 
-      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-      const network = await window.ethereum.request({ method: "eth_chainId" });
+      const ethersProvider = new ethers.BrowserProvider(window.ethereum);
+      await ethersProvider.send("eth_requestAccounts", []);
+      const signer = await ethersProvider.getSigner();
+      const address = await signer.getAddress();
 
-      if (network !== "0xc470") {
-        alert("Harap ganti ke jaringan Somnia Testnet");
+      const network = await ethersProvider.getNetwork();
+      if (network.chainId !== SOMNIA_CHAIN_ID) {
+        setNetworkValid(false);
+        alert("Harap ganti ke jaringan Somnia Testnet (Chain ID: 50312)");
         return;
       }
 
-      const ethersProvider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await ethersProvider.getSigner();
-      const address = await signer.getAddress();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+      const gameContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
 
       setProvider(ethersProvider);
       setSigner(signer);
-      setContract(contract);
+      setContract(gameContract);
       setWalletAddress(address);
+      setNetworkValid(true);
     } catch (error) {
       console.error("Gagal menghubungkan wallet:", error);
+      alert("Gagal menghubungkan wallet.");
     }
   };
 
@@ -57,7 +63,6 @@ const ArenaPVP = () => {
       if (alreadyInBattle) {
         alert("Kamu sudah berada dalam battle aktif.");
         navigate("/waiting");
-        setIsJoining(false);
         return;
       }
 
@@ -74,14 +79,21 @@ const ArenaPVP = () => {
 
   useEffect(() => {
     connectWallet();
+
+    if (window.ethereum) {
+      window.ethereum.on("chainChanged", () => window.location.reload());
+    }
   }, []);
 
   return (
     <div className="p-6 text-center">
       <h1 className="text-3xl font-bold mb-4">Arena PvP</h1>
+
       {walletAddress ? (
         <div className="mb-4">
-          <p className="text-green-400">Status: Terhubung</p>
+          <p className={networkValid ? "text-green-400" : "text-yellow-400"}>
+            Status: {networkValid ? "Terhubung" : "Jaringan Salah"}
+          </p>
           <p className="text-sm break-all">{walletAddress}</p>
         </div>
       ) : (
@@ -96,9 +108,11 @@ const ArenaPVP = () => {
       <button
         onClick={handleJoinMatch}
         className={`${
-          isJoining ? "bg-gray-500" : "bg-purple-600 hover:bg-purple-700"
+          isJoining || !networkValid
+            ? "bg-gray-500"
+            : "bg-purple-600 hover:bg-purple-700"
         } px-4 py-2 rounded`}
-        disabled={isJoining || !walletAddress}
+        disabled={isJoining || !walletAddress || !networkValid}
       >
         {isJoining ? "Gabung PvP..." : "Gabung PvP"}
       </button>
