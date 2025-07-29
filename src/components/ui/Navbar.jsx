@@ -1,10 +1,8 @@
-// src/components/ui/Navbar.jsx
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ethers } from "ethers";
 
 const Navbar = () => {
-  const location = useLocation();
   const [walletAddress, setWalletAddress] = useState(null);
   const [signature, setSignature] = useState(null);
 
@@ -34,8 +32,6 @@ const Navbar = () => {
     setSignature(null);
   };
 
-  const isInArenaPvP = location.pathname === "/arena-pvp";
-
   return (
     <nav className="bg-gray-800 p-4 flex justify-between items-center">
       <div className="text-xl font-bold">
@@ -45,11 +41,12 @@ const Navbar = () => {
         <Link to="/" className="hover:underline">
           Home
         </Link>
-        {!isInArenaPvP && (
-          <Link to="/join-pvp" className="hover:underline">
-            Join PvP
-          </Link>
-        )}
+        <Link to="/join-pvp" className="hover:underline">
+          Join PvP
+        </Link>
+        <Link to="/arena-pvp" className="hover:underline">
+          Arena PvP
+        </Link>
         <Link to="/arena-pve" className="hover:underline">
           Arena PvE
         </Link>
