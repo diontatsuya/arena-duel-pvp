@@ -20,7 +20,12 @@ const ArenaPVP = () => {
 
   useEffect(() => {
     const init = async () => {
-      if (window.ethereum) {
+      if (!window.ethereum) {
+        setStatus("MetaMask tidak ditemukan");
+        return;
+      }
+
+      try {
         const newProvider = new ethers.BrowserProvider(window.ethereum);
         const newSigner = await newProvider.getSigner();
         const newContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, newSigner);
@@ -28,6 +33,9 @@ const ArenaPVP = () => {
         setProvider(newProvider);
         setSigner(newSigner);
         setContract(newContract);
+      } catch (err) {
+        console.error("Inisialisasi gagal:", err);
+        setStatus("Gagal menghubungkan kontrak.");
       }
     };
 
@@ -36,74 +44,63 @@ const ArenaPVP = () => {
 
   useEffect(() => {
     const fetchStatus = async () => {
-      if (signer && contract) {
-        try {
-          const address = await signer.getAddress();
-          const statusData = await contract.getStatus(address);
+      if (!signer || !contract) return;
 
-          const {
-            battleId,
-            player1,
-            player2,
-            turn,
-            hp,
-            lastAction,
-            isActive
-          } = statusData;
+      try {
+        const address = await signer.getAddress();
+        const {
+          battleId,
+          player1,
+          player2,
+          turn,
+          hp,
+          lastAction,
+          isActive
+        } = await contract.getStatus(address);
 
-          const isPlayer1 = address.toLowerCase() === player1.toLowerCase();
-          const opponentAddress = isPlayer1 ? player2 : player1;
-
-          const playerData = {
-            address,
-            hp: Number(hp),
-            lastAction: Number(lastAction)
-          };
-
-          const opponentData = {
-            address: opponentAddress,
-            hp: null,
-            lastAction: null
-          };
-
-          setPlayer(playerData);
-          setOpponent(opponentData);
-
-          // Check if opponent has joined
-          if (!isActive) {
-            setStatus("Belum masuk pertandingan.");
-            return;
-          }
-
-          if (player2 === ethers.ZeroAddress) {
-            setStatus("Menunggu lawan...");
-            return;
-          }
-
-          // Determine turn
-          const yourTurn = (isPlayer1 && turn === 1) || (!isPlayer1 && turn === 2);
-          setIsYourTurn(yourTurn);
-          setStatus(yourTurn ? "Giliran kamu!" : "Giliran lawan...");
-
-          // Game over check
-          if (playerData.hp <= 0) {
-            setStatus("Kamu kalah!");
-            setGameOver(true);
-            setWinner(opponentData.address);
-          } else if (playerData.hp > 0 && playerData.lastAction === 1) {
-            // Check if last turn was finishing move (optional)
-            const oppStatus = await contract.getStatus(opponentData.address);
-            if (Number(oppStatus.hp) <= 0) {
-              setStatus("Kamu menang!");
-              setGameOver(true);
-              setWinner(playerData.address);
-            }
-          }
-
-        } catch (err) {
-          console.error("Gagal mengambil status:", err);
-          setStatus("Gagal mengambil status.");
+        if (!isActive) {
+          setStatus("Belum masuk pertandingan.");
+          return;
         }
+
+        if (player2 === ethers.ZeroAddress) {
+          setStatus("Menunggu lawan...");
+          return;
+        }
+
+        const isPlayer1 = address.toLowerCase() === player1.toLowerCase();
+        const opponentAddress = isPlayer1 ? player2 : player1;
+
+        const playerData = {
+          address,
+          hp: Number(hp),
+          lastAction: Number(lastAction)
+        };
+
+        const oppStatus = await contract.getStatus(opponentAddress);
+        const opponentData = {
+          address: opponentAddress,
+          hp: Number(oppStatus.hp),
+          lastAction: Number(oppStatus.lastAction)
+        };
+
+        setPlayer(playerData);
+        setOpponent(opponentData);
+
+        if (playerData.hp <= 0 || opponentData.hp <= 0) {
+          const win = playerData.hp > 0;
+          setGameOver(true);
+          setWinner(win ? playerData.address : opponentData.address);
+          setStatus(win ? "Kamu menang!" : "Kamu kalah!");
+          return;
+        }
+
+        const yourTurn = (isPlayer1 && turn === 1) || (!isPlayer1 && turn === 2);
+        setIsYourTurn(yourTurn);
+        setStatus(yourTurn ? "Giliran kamu!" : "Giliran lawan...");
+      } catch (err) {
+        console.error("Gagal mengambil status:", err);
+        setStatus("Gagal mengambil status.");
       }
     };
 
@@ -133,7 +130,7 @@ const ArenaPVP = () => {
       <div className="p-4 bg-gray-800 rounded-lg shadow w-full md:w-1/2 mb-4">
         <h2 className="text-lg font-semibold mb-2">{title}</h2>
         <p><strong>Alamat:</strong> {data.address}</p>
-        <p><strong>HP:</strong> {data.hp !== null ? data.hp : "???"}</p>
+        <p><strong>HP:</strong> {data.hp ?? "???"}</p>
         <p><strong>Aksi Terakhir:</strong> {data.lastAction !== null ? ACTIONS[data.lastAction] : "???"}</p>
       </div>
     );
