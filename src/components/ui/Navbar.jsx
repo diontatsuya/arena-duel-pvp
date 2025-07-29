@@ -1,5 +1,5 @@
 // src/components/ui/Navbar.jsx
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ethers } from "ethers";
 
@@ -15,7 +15,7 @@ const Navbar = () => {
         const signer = await provider.getSigner();
         const address = await signer.getAddress();
 
-        // Minta tanda tangan
+        // Minta tanda tangan untuk login
         const sig = await signer.signMessage("Login to Arena Duel");
         setSignature(sig);
         setWalletAddress(address);
@@ -28,6 +28,11 @@ const Navbar = () => {
     }
   };
 
+  const disconnectWallet = () => {
+    setWalletAddress(null);
+    setSignature(null);
+  };
+
   return (
     <nav className="bg-gray-800 p-4 flex justify-between items-center">
       <div className="text-xl font-bold">
@@ -37,16 +42,27 @@ const Navbar = () => {
         <Link to="/" className="hover:underline">
           Home
         </Link>
-        <Link to="/pvp" className="hover:underline">
+        <Link to="/join-pvp" className="hover:underline">
+          Join PvP
+        </Link>
+        <Link to="/arena-pvp" className="hover:underline">
           Arena PvP
         </Link>
-        <Link to="/pve" className="hover:underline">
+        <Link to="/arena-pve" className="hover:underline">
           Arena PvE
         </Link>
         {walletAddress ? (
-          <span className="text-green-400">
-            {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className="text-green-400">
+              {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+            </span>
+            <button
+              onClick={disconnectWallet}
+              className="text-red-400 hover:underline"
+            >
+              Logout
+            </button>
+          </div>
         ) : (
           <button
             onClick={connectWallet}
