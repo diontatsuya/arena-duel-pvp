@@ -12,6 +12,7 @@ const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
+  const [signature, setSignature] = useState(null);
   const [isJoining, setIsJoining] = useState(false);
   const [networkValid, setNetworkValid] = useState(true);
 
@@ -34,13 +35,20 @@ const ArenaPVP = () => {
         return;
       }
 
+      // Signature message
+      const signed = await signer.signMessage("Login to Arena Duel");
+
       const gameContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
 
       setProvider(ethersProvider);
       setSigner(signer);
       setContract(gameContract);
       setWalletAddress(address);
+      setSignature(signed);
       setNetworkValid(true);
+
+      console.log("Wallet:", address);
+      console.log("Signature:", signed);
     } catch (error) {
       console.error("Gagal menghubungkan wallet:", error);
       alert("Gagal menghubungkan wallet.");
@@ -95,6 +103,9 @@ const ArenaPVP = () => {
             Status: {networkValid ? "Terhubung" : "Jaringan Salah"}
           </p>
           <p className="text-sm break-all">{walletAddress}</p>
+          <p className="text-xs break-all text-gray-400">
+            Signature: {signature?.slice(0, 10)}...
+          </p>
         </div>
       ) : (
         <button
