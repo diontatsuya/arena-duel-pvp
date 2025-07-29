@@ -8,23 +8,23 @@ const Navbar = () => {
   const [signature, setSignature] = useState(null);
 
   const connectWallet = async () => {
-    if (window.ethereum) {
-      try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
+    if (typeof window.ethereum === "undefined") {
+      alert("MetaMask tidak terdeteksi");
+      return;
+    }
 
-        // Minta tanda tangan untuk login
-        const sig = await signer.signMessage("Login to Arena Duel");
-        setSignature(sig);
-        setWalletAddress(address);
-        console.log("Signed in:", address, sig);
-      } catch (error) {
-        console.error("Wallet connection failed:", error);
-      }
-    } else {
-      alert("MetaMask not detected");
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      const sig = await signer.signMessage("Login to Arena Duel");
+
+      setWalletAddress(address);
+      setSignature(sig);
+      console.log("Signed in:", address, sig);
+    } catch (error) {
+      console.error("Gagal menghubungkan wallet:", error);
     }
   };
 
