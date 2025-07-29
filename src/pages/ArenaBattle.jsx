@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
@@ -6,14 +7,16 @@ import BattleStatus from "../components/ui/BattleStatus";
 import BattleControls from "../components/ui/BattleControls";
 
 const ArenaBattle = () => {
+  const navigate = useNavigate();
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
   const [player, setPlayer] = useState(null);
   const [opponent, setOpponent] = useState(null);
-  const [status, setStatus] = useState(null);
-  const [isPlayerTurn, setIsPlayerTurn] = useState(false);
-  const [txPending, setTxPending] = useState(false);
+  const [isMyTurn, setIsMyTurn] = useState(false);
+  const [status, setStatus] = useState("Memuat status pertandingan...");
+  const [isLoading, setIsLoading] = useState(false);
+  const [myAddress, setMyAddress] = useState(null);
 
   useEffect(() => {
     const init = async () => {
@@ -21,78 +24,111 @@ const ArenaBattle = () => {
         const tempProvider = new ethers.BrowserProvider(window.ethereum);
         const tempSigner = await tempProvider.getSigner();
         const tempContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, tempSigner);
+        const address = await tempSigner.getAddress();
 
         setProvider(tempProvider);
         setSigner(tempSigner);
         setContract(tempContract);
+        setMyAddress(address);
       }
     };
+
     init();
   }, []);
 
   useEffect(() => {
-    let interval;
-    const fetchStatus = async () => {
-      if (!contract || !signer) return;
-      const address = await signer.getAddress();
-      const battle = await contract.getBattle(address);
-      setStatus(battle);
-      setPlayer(battle.player1 === address ? battle.player1 : battle.player2);
-      setOpponent(battle.player1 === address ? battle.player2 : battle.player1);
-      setIsPlayerTurn(battle.currentTurn === address);
-    };
-
-    if (contract && signer) {
-      fetchStatus();
-      interval = setInterval(fetchStatus, 3000);
+    if (contract && myAddress) {
+      fetchGameStatus();
+      const interval = setInterval(fetchGameStatus, 3000);
+      return () => clearInterval(interval);
     }
+  }, [contract, myAddress]);
 
-    return () => clearInterval(interval);
-  }, [contract, signer]);
-
-  const handleAction = async (action) => {
-    if (!contract || !signer || txPending) return;
+  const fetchGameStatus = async () => {
     try {
-      setTxPending(true);
-      const tx = await contract.performAction(action);
-      await tx.wait();
-    } catch (err) {
-      console.error("Action error:", err);
-    } finally {
-      setTxPending(false);
+      const game = await contract.getPlayer(myAddress);
+      const opponentAddr = game.opponent;
+
+      if (opponentAddr === ethers.ZeroAddress) {
+        setStatus("Menunggu lawan...");
+        return;
+      }
+
+      const myData = {
+        hp: Number(game.hp),
+        lastAction: game.lastAction,
+      };
+
+      const opponentDataRaw = await contract.getPlayer(opponentAddr);
+      const opponentData = {
+        hp: Number(opponentDataRaw.hp),
+        lastAction: opponentDataRaw.lastAction,
+      };
+
+      setPlayer(myData);
+      setOpponent(opponentData);
+      setIsMyTurn(game.isTurn);
+      setStatus("Pertandingan berlangsung!");
+    } catch (error) {
+      console.error("Gagal memuat status pertandingan:", error);
+      setStatus("Gagal memuat status pertandingan.");
     }
   };
 
-  if (!status || !player || !opponent) {
-    return <div className="text-center p-4">Loading battle data...</div>;
-  }
+  const handleAction = async (action) => {
+    if (!contract) return;
+    setIsLoading(true);
+    try {
+      let tx;
+      if (action === "attack") {
+        tx = await contract.attack();
+      } else if (action === "defend") {
+        tx = await contract.defend();
+      } else if (action === "heal") {
+        tx = await contract.heal();
+      }
+
+      await tx.wait();
+      fetchGameStatus();
+    } catch (err) {
+      console.error("Aksi gagal:", err);
+    }
+    setIsLoading(false);
+  };
+
+  const handleLeave = async () => {
+    if (!contract) return;
+    setIsLoading(true);
+    try {
+      const tx = await contract.leaveGame();
+      await tx.wait();
+      navigate("/arena-pvp");
+    } catch (err) {
+      console.error("Gagal keluar dari game:", err);
+    }
+    setIsLoading(false);
+  };
 
   return (
-    <div className="max-w-xl mx-auto mt-10 p-6 bg-gray-800 rounded-xl shadow-lg">
-      <h2 className="text-2xl font-bold text-center mb-6">Arena PvP Battle</h2>
+    <div className="p-4 max-w-3xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4 text-center">Arena Battle PvP</h1>
+      <p className="text-center text-sm text-gray-400">{status}</p>
 
-      <BattleStatus status={status} player={player} opponent={opponent} />
+      <BattleStatus player={player} opponent={opponent} isMyTurn={isMyTurn} />
 
-      <div className="text-center mb-4">
-        {status.winner === ethers.ZeroAddress ? (
-          isPlayerTurn ? (
-            <p className="text-green-400 font-bold">Giliranmu!</p>
-          ) : (
-            <p className="text-yellow-400">Menunggu giliran lawan...</p>
-          )
-        ) : (
-          <p className="text-red-400 font-bold">
-            Pertandingan selesai! {status.winner === player ? "Kamu menang!" : "Kamu kalah!"}
-          </p>
-        )}
-      </div>
-
-      {status.winner === ethers.ZeroAddress && (
-        <BattleControls
-          isPlayerTurn={isPlayerTurn}
-          onAction={handleAction}
-        />
+      {isMyTurn && (
+        <BattleControls onAction={handleAction} isLoading={isLoading} />
       )}
+
+      <div className="text-center mt-6">
+        <button
+          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+          onClick={handleLeave}
+          disabled={isLoading}
+        >
+          Tinggalkan Pertandingan
+        </button>
+      </div>
     </div>
   );
 };
