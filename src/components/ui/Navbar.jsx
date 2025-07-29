@@ -1,16 +1,14 @@
-import { useEffect, useState } from "react";
+// src/components/ui/Navbar.jsx
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ethers } from "ethers";
-
-const SOMNIA_CHAIN_ID = 50312;
 
 const Navbar = () => {
   const [walletAddress, setWalletAddress] = useState(null);
   const [signature, setSignature] = useState(null);
-  const [isCorrectNetwork, setIsCorrectNetwork] = useState(true);
 
   const connectWallet = async () => {
-    if (typeof window.ethereum === "undefined") {
+    if (!window.ethereum) {
       alert("MetaMask tidak terdeteksi");
       return;
     }
@@ -20,59 +18,24 @@ const Navbar = () => {
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
-      const sig = await signer.signMessage("Login to Arena Duel");
 
-      const network = await provider.getNetwork();
-      if (network.chainId !== SOMNIA_CHAIN_ID) {
-        setIsCorrectNetwork(false);
-        alert("Harap ganti ke jaringan Somnia Testnet.");
-        return;
-      }
+      // Tanda tangan pesan
+      const message = "Login to Arena Duel";
+      const signedMessage = await signer.signMessage(message);
 
       setWalletAddress(address);
-      setSignature(sig);
-      setIsCorrectNetwork(true);
-
-      console.log("Signed in:", address, sig);
-    } catch (error) {
-      console.error("Gagal menghubungkan wallet:", error);
+      setSignature(signedMessage);
+      console.log("Wallet:", address);
+      console.log("Signature:", signedMessage);
+    } catch (err) {
+      console.error("Gagal koneksi wallet:", err);
     }
   };
 
   const disconnectWallet = () => {
     setWalletAddress(null);
     setSignature(null);
-    setIsCorrectNetwork(true);
   };
-
-  const checkNetworkOnLoad = async () => {
-    if (typeof window.ethereum !== "undefined") {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const network = await provider.getNetwork();
-      if (network.chainId !== SOMNIA_CHAIN_ID) {
-        setIsCorrectNetwork(false);
-      } else {
-        setIsCorrectNetwork(true);
-      }
-    }
-  };
-
-  useEffect(() => {
-    checkNetworkOnLoad();
-
-    // Optional: listen for network change
-    if (window.ethereum) {
-      window.ethereum.on("chainChanged", () => {
-        window.location.reload(); // reload untuk memicu ulang pengecekan jaringan
-      });
-    }
-
-    return () => {
-      if (window.ethereum?.removeListener) {
-        window.ethereum.removeListener("chainChanged", () => {});
-      }
-    };
-  }, []);
 
   return (
     <nav className="bg-gray-800 p-4 flex justify-between items-center">
@@ -94,11 +57,7 @@ const Navbar = () => {
         </Link>
         {walletAddress ? (
           <div className="flex items-center space-x-2">
-            <span
-              className={`${
-                isCorrectNetwork ? "text-green-400" : "text-yellow-400"
-              }`}
-            >
+            <span className="text-green-400">
               {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
             </span>
             <button
