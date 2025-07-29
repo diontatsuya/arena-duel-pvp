@@ -27,28 +27,31 @@ const JoinPVP = () => {
         const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
 
         // Gabung matchmaking
-        const tx = await contract.joinGame();
-        await tx.wait(); // tunggu konfirmasi
+        const tx = await contract.joinMatchmaking();
+        await tx.wait();
 
         // Cek status setiap 3 detik
         interval = setInterval(async () => {
           try {
-            const player = await contract.players(userAddress);
-            if (player.opponent !== ethers.ZeroAddress) {
+            const status = await contract.getStatus(userAddress);
+            const player2 = status[2]; // getStatus(...) returns tuple: [battleId, player1, player2, ...]
+            console.log("Status player:", status);
+
+            if (player2 !== ethers.ZeroAddress) {
               clearInterval(interval);
               setIsMatched(true);
               setTimeout(() => navigate("/arena-pvp"), 1500);
             }
           } catch (err) {
-            console.error("Error memeriksa status:", err);
+            console.error("Error memeriksa status matchmaking:", err);
             clearInterval(interval);
             setError("Gagal memeriksa status matchmaking.");
             setChecking(false);
           }
         }, 3000);
       } catch (err) {
-        console.error("Gagal join game:", err);
-        setError("Gagal join game.");
+        console.error("Gagal join matchmaking:", err);
+        setError("Gagal join matchmaking.");
         setChecking(false);
       }
     };
