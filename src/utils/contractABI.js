@@ -2,50 +2,25 @@ export const contractABI = [
   {
     "anonymous": false,
     "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "player",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "enum ArenaDuelTurnBased.Action",
-        "name": "action",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "newHp",
-        "type": "uint256"
-      }
+      { "indexed": true, "internalType": "uint256", "name": "battleId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "player1", "type": "address" }
     ],
-    "name": "ActionTaken",
+    "name": "BattleCreated",
     "type": "event"
   },
   {
     "anonymous": false,
     "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "winner",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "loser",
-        "type": "address"
-      }
+      { "indexed": true, "internalType": "uint256", "name": "battleId", "type": "uint256" },
+      { "indexed": false, "internalType": "address", "name": "winner", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "loser", "type": "address" }
     ],
-    "name": "GameEnded",
+    "name": "BattleEnded",
     "type": "event"
   },
   {
     "inputs": [],
-    "name": "joinGame",
+    "name": "joinMatchmaking",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -53,20 +28,10 @@ export const contractABI = [
   {
     "anonymous": false,
     "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "player1",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "player2",
-        "type": "address"
-      }
+      { "indexed": true, "internalType": "uint256", "name": "battleId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "player2", "type": "address" }
     ],
-    "name": "Matched",
+    "name": "PlayerJoined",
     "type": "event"
   },
   {
@@ -77,117 +42,53 @@ export const contractABI = [
         "type": "uint8"
       }
     ],
-    "name": "takeAction",
+    "name": "takeTurn",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
+    "anonymous": false,
     "inputs": [
-      {
-        "internalType": "address",
-        "name": "player",
-        "type": "address"
-      }
+      { "indexed": true, "internalType": "uint256", "name": "battleId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "player", "type": "address" },
+      { "indexed": false, "internalType": "enum ArenaDuelTurnBased.Action", "name": "action", "type": "uint8" },
+      { "indexed": false, "internalType": "uint256", "name": "hp", "type": "uint256" }
     ],
-    "name": "getOpponentData",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "hp",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "isTurn",
-        "type": "bool"
-      },
-      {
-        "internalType": "enum ArenaDuelTurnBased.Action",
-        "name": "lastAction",
-        "type": "uint8"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "player",
-        "type": "address"
-      }
-    ],
-    "name": "getPlayerData",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "hp",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "isTurn",
-        "type": "bool"
-      },
-      {
-        "internalType": "address",
-        "name": "opponent",
-        "type": "address"
-      },
-      {
-        "internalType": "enum ArenaDuelTurnBased.Action",
-        "name": "lastAction",
-        "type": "uint8"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "players",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "opponent",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "hp",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "isTurn",
-        "type": "bool"
-      },
-      {
-        "internalType": "enum ArenaDuelTurnBased.Action",
-        "name": "lastAction",
-        "type": "uint8"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
+    "name": "TurnTaken",
+    "type": "event"
   },
   {
     "inputs": [],
-    "name": "waitingPlayer",
+    "name": "battleCount",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "player", "type": "address" }
+    ],
+    "name": "getStatus",
     "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
+      { "internalType": "uint256", "name": "battleId", "type": "uint256" },
+      { "internalType": "address", "name": "player1", "type": "address" },
+      { "internalType": "address", "name": "player2", "type": "address" },
+      { "internalType": "uint8", "name": "turn", "type": "uint8" },
+      { "internalType": "uint256", "name": "hp", "type": "uint256" },
+      { "internalType": "enum ArenaDuelTurnBased.Action", "name": "lastAction", "type": "uint8" },
+      { "internalType": "bool", "name": "isActive", "type": "bool" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "", "type": "address" }
+    ],
+    "name": "playerBattle",
+    "outputs": [
+      { "internalType": "uint256", "name": "", "type": "uint256" }
     ],
     "stateMutability": "view",
     "type": "function"
