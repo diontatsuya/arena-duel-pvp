@@ -9,7 +9,6 @@ const App = () => {
   return (
     <Router>
       <div className="min-h-screen bg-gray-900 text-white">
-        <Navbar />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/arena-pvp" element={<ArenaPVP />} />
