@@ -1,14 +1,16 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Navbar from "../components/ui/Navbar"; // tambahkan ini
 import Home from "../pages/Home";
 import ArenaPVP from "../pages/ArenaPVP";
 import JoinPVP from "../pages/JoinPVP";
 import ArenaPVE from "../pages/ArenaPVE";
 import NotFound from "../pages/NotFound";
 
-const App = () => {
+const AppRoutes = () => {
   return (
     <Router>
       <div className="min-h-screen bg-gray-900 text-white">
+        <Navbar /> {/* panggil Navbar di sini */}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/arena-pvp" element={<ArenaPVP />} />
@@ -21,4 +23,4 @@ const App = () => {
   );
 };
 
-export default App;
+export default AppRoutes;
