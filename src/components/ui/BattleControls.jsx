@@ -1,44 +1,34 @@
 import React from "react";
 
-const BattleControls = ({ isYourTurn, onAction, onLeave, loading }) => {
+const BattleControls = ({ onAction, onLeave, isMyTurn, isWaiting }) => {
   return (
-    <div className="mt-4 flex flex-col items-center gap-4">
-      {!isYourTurn && (
-        <p className="text-yellow-400">Menunggu giliran lawan...</p>
-      )}
-
-      <div className="flex flex-wrap justify-center gap-4">
-        <button
-          className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-          disabled={!isYourTurn || loading}
-          onClick={() => onAction("attack")}
-        >
-          Serang
-        </button>
-
-        <button
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-          disabled={!isYourTurn || loading}
-          onClick={() => onAction("defend")}
-        >
-          Bertahan
-        </button>
-
-        <button
-          className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-          disabled={!isYourTurn || loading}
-          onClick={() => onAction("heal")}
-        >
-          Heal
-        </button>
-      </div>
-
+    <div className="flex flex-col items-center space-y-2 mt-4">
       <button
-        className="mt-4 text-sm text-gray-300 hover:text-white underline"
-        onClick={onLeave}
-        disabled={loading}
+        onClick={() => onAction("attack")}
+        disabled={!isMyTurn || isWaiting}
+        className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl disabled:opacity-40 w-40"
       >
-        Keluar dari Pertarungan
+        Attack
+      </button>
+      <button
+        onClick={() => onAction("defend")}
+        disabled={!isMyTurn || isWaiting}
+        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl disabled:opacity-40 w-40"
+      >
+        Defend
+      </button>
+      <button
+        onClick={() => onAction("heal")}
+        disabled={!isMyTurn || isWaiting}
+        className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl disabled:opacity-40 w-40"
+      >
+        Heal
+      </button>
+      <button
+        onClick={onLeave}
+        className="px-6 py-2 mt-4 bg-gray-500 hover:bg-gray-600 text-white rounded-xl w-40"
+      >
+        Leave Battle
       </button>
     </div>
   );
