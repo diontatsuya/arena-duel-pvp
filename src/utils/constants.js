@@ -1,2 +1,1 @@
-// src/constants.js
-export const CONTRACT_ADDRESS = "0xfd695e5cbf336490cdb74e025980b95bfbd30382";
+export const CONTRACT_ADDRESS = "0xc513cdd4733c2a798b74f879835110e62744da5a";
