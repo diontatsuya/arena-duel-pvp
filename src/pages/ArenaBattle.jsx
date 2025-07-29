@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
-import BattleStatus from "../components/ui/BattleStatus";
-import BattleControls from "../components/ui/BattleControls";
+import BattleStatus from "../components/pvp/BattleStatus";
+import BattleControls from "../components/pvp/BattleControls";
 
 const ArenaBattle = () => {
   const navigate = useNavigate();
