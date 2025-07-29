@@ -1,22 +1,23 @@
-const BattleStatus = ({ player, isYourTurn }) => {
+import React from "react";
+
+const BattleStatus = ({ player, opponent, isMyTurn }) => {
   return (
-    <div className="bg-gray-800 p-4 rounded-xl shadow-md mb-4">
-      <h2 className="text-xl font-bold mb-2">Status Pertandingan</h2>
-      <div className="grid grid-cols-2 gap-4 text-center">
-        <div>
-          <h3 className="font-semibold">Kamu</h3>
-          <p>HP: {player?.yourHp ?? "?"}</p>
-          <p>Aksi Terakhir: {player?.yourLastAction ?? "-"}</p>
-        </div>
-        <div>
-          <h3 className="font-semibold">Lawan</h3>
-          <p>HP: {player?.opponentHp ?? "?"}</p>
-          <p>Aksi Terakhir: {player?.opponentLastAction ?? "-"}</p>
-        </div>
+    <div className="grid grid-cols-2 gap-6 text-center my-6">
+      {/* Player Info */}
+      <div className="bg-gray-800 p-4 rounded-xl shadow-md">
+        <h3 className="text-lg font-bold text-green-400">Kamu</h3>
+        <p>HP: {player?.hp ?? "-"}</p>
+        <p>Aksi Terakhir: {player?.lastAction ?? "-"}</p>
+        {isMyTurn && <p className="mt-2 text-sm text-yellow-400">Giliranmu!</p>}
       </div>
-      <p className="text-center mt-4 font-semibold text-yellow-400">
-        {isYourTurn ? "Giliranmu!" : "Menunggu giliran lawan..."}
-      </p>
+
+      {/* Opponent Info */}
+      <div className="bg-gray-800 p-4 rounded-xl shadow-md">
+        <h3 className="text-lg font-bold text-red-400">Lawan</h3>
+        <p>HP: {opponent?.hp ?? "-"}</p>
+        <p>Aksi Terakhir: {opponent?.lastAction ?? "-"}</p>
+        {!isMyTurn && <p className="mt-2 text-sm text-yellow-400">Giliran lawan...</p>}
+      </div>
     </div>
   );
 };
