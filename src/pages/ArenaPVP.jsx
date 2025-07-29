@@ -3,18 +3,19 @@ import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
 
+const ACTIONS = ["None", "Attack", "Defend", "Heal"];
+
 const ArenaPVP = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
+
   const [player, setPlayer] = useState(null);
   const [opponent, setOpponent] = useState(null);
-  const [status, setStatus] = useState("Menunggu lawan...");
+  const [status, setStatus] = useState("Menghubungkan...");
   const [isYourTurn, setIsYourTurn] = useState(false);
-
   const [txPending, setTxPending] = useState(false);
 
-  // Hubungkan ke wallet dan kontrak
   useEffect(() => {
     const init = async () => {
       if (window.ethereum) {
@@ -31,34 +32,57 @@ const ArenaPVP = () => {
     init();
   }, []);
 
-  // Ambil status pemain
   useEffect(() => {
     const fetchStatus = async () => {
       if (signer && contract) {
-        const address = await signer.getAddress();
-
         try {
-          const playerData = await contract.getPlayer(address);
-          const opponentAddr = await contract.getOpponent(address);
-          const opponentData = await contract.getPlayer(opponentAddr);
+          const address = await signer.getAddress();
+          const data = await contract.getStatus(address);
 
-          setPlayer({ address, ...playerData });
-          setOpponent({ address: opponentAddr, ...opponentData });
+          const {
+            battleId,
+            player1,
+            player2,
+            turn,
+            hp,
+            lastAction,
+            isActive
+          } = data;
 
-          if (playerData.opponent === ethers.ZeroAddress) {
+          const isPlayer1 = address.toLowerCase() === player1.toLowerCase();
+          const opponentAddress = isPlayer1 ? player2 : player1;
+
+          setPlayer({
+            address,
+            hp: Number(hp),
+            lastAction: Number(lastAction),
+          });
+
+          setOpponent({
+            address: opponentAddress,
+            // Opponent's data will be unknown; placeholder only
+            hp: null,
+            lastAction: null
+          });
+
+          if (!isActive) {
+            setStatus("Belum masuk pertandingan.");
+          } else if (player2 === ethers.ZeroAddress) {
             setStatus("Menunggu lawan...");
           } else {
             setStatus("Pertandingan dimulai!");
-            setIsYourTurn(playerData.isTurn);
+            setIsYourTurn(
+              (isPlayer1 && turn === 1) || (!isPlayer1 && turn === 2)
+            );
           }
         } catch (err) {
           console.error("Gagal ambil status pemain:", err);
+          setStatus("Gagal mengambil status.");
         }
       }
     };
 
     fetchStatus();
-
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, [signer, contract]);
@@ -79,11 +103,13 @@ const ArenaPVP = () => {
 
   const renderPlayer = (data, title) => {
     if (!data) return null;
+
     return (
       <div className="p-4 bg-gray-800 rounded-lg shadow w-full md:w-1/2 mb-4">
         <h2 className="text-lg font-semibold mb-2">{title}</h2>
-        <p><strong>HP:</strong> {Number(data.hp)}</p>
-        <p><strong>Aksi Terakhir:</strong> {["None", "Attack", "Defend", "Heal"][Number(data.lastAction)]}</p>
+        <p><strong>Alamat:</strong> {data.address}</p>
+        <p><strong>HP:</strong> {data.hp !== null ? data.hp : "???"}</p>
+        <p><strong>Aksi Terakhir:</strong> {data.lastAction !== null ? ACTIONS[data.lastAction] : "???"}</p>
       </div>
     );
   };
