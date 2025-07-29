@@ -1,6 +1,6 @@
 // src/App.jsx
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Home from "./pages/Home";
+import Home from "../pages/Home";
 import ArenaPVP from "../pages/ArenaPVP";
 import JoinPVP from "../pages/JoinPVP";
 import ArenaPVE from "../pages/ArenaPVE";
