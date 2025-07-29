@@ -1,7 +1,8 @@
 import React from "react";
 
-const HealthBar = ({ label, hp }) => {
-  const hpPercent = Math.max(0, Math.min(100, (hp / 100) * 100));
+const HealthBar = ({ label, hp, maxHp = 100 }) => {
+  const hpValue = Math.max(0, Math.min(hp, maxHp));
+  const hpPercent = (hpValue / maxHp) * 100;
 
   return (
     <div className="mb-4">
@@ -12,7 +13,7 @@ const HealthBar = ({ label, hp }) => {
           style={{ width: `${hpPercent}%` }}
         />
       </div>
-      <div className="text-sm text-center mt-1">{hp} / 100</div>
+      <div className="text-sm text-center mt-1">{hpValue} / {maxHp}</div>
     </div>
   );
 };
