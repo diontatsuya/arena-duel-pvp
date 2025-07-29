@@ -15,6 +15,8 @@ const ArenaPVP = () => {
   const [status, setStatus] = useState("Menghubungkan...");
   const [isYourTurn, setIsYourTurn] = useState(false);
   const [txPending, setTxPending] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [winner, setWinner] = useState(null);
 
   useEffect(() => {
     const init = async () => {
@@ -37,7 +39,7 @@ const ArenaPVP = () => {
       if (signer && contract) {
         try {
           const address = await signer.getAddress();
-          const data = await contract.getStatus(address);
+          const statusData = await contract.getStatus(address);
 
           const {
             battleId,
@@ -47,48 +49,71 @@ const ArenaPVP = () => {
             hp,
             lastAction,
             isActive
-          } = data;
+          } = statusData;
 
           const isPlayer1 = address.toLowerCase() === player1.toLowerCase();
           const opponentAddress = isPlayer1 ? player2 : player1;
 
-          setPlayer({
+          const playerData = {
             address,
             hp: Number(hp),
-            lastAction: Number(lastAction),
-          });
+            lastAction: Number(lastAction)
+          };
 
-          setOpponent({
+          const opponentData = {
             address: opponentAddress,
-            // Opponent's data will be unknown; placeholder only
             hp: null,
             lastAction: null
-          });
+          };
 
+          setPlayer(playerData);
+          setOpponent(opponentData);
+
+          // Check if opponent has joined
           if (!isActive) {
             setStatus("Belum masuk pertandingan.");
-          } else if (player2 === ethers.ZeroAddress) {
-            setStatus("Menunggu lawan...");
-          } else {
-            setStatus("Pertandingan dimulai!");
-            setIsYourTurn(
-              (isPlayer1 && turn === 1) || (!isPlayer1 && turn === 2)
-            );
+            return;
           }
+
+          if (player2 === ethers.ZeroAddress) {
+            setStatus("Menunggu lawan...");
+            return;
+          }
+
+          // Determine turn
+          const yourTurn = (isPlayer1 && turn === 1) || (!isPlayer1 && turn === 2);
+          setIsYourTurn(yourTurn);
+          setStatus(yourTurn ? "Giliran kamu!" : "Giliran lawan...");
+
+          // Game over check
+          if (playerData.hp <= 0) {
+            setStatus("Kamu kalah!");
+            setGameOver(true);
+            setWinner(opponentData.address);
+          } else if (playerData.hp > 0 && playerData.lastAction === 1) {
+            // Check if last turn was finishing move (optional)
+            const oppStatus = await contract.getStatus(opponentData.address);
+            if (Number(oppStatus.hp) <= 0) {
+              setStatus("Kamu menang!");
+              setGameOver(true);
+              setWinner(playerData.address);
+            }
+          }
+
         } catch (err) {
-          console.error("Gagal ambil status pemain:", err);
+          console.error("Gagal mengambil status:", err);
           setStatus("Gagal mengambil status.");
         }
       }
     };
 
     fetchStatus();
-    const interval = setInterval(fetchStatus, 5000);
+    const interval = setInterval(fetchStatus, 4000);
     return () => clearInterval(interval);
   }, [signer, contract]);
 
   const handleAction = async (action) => {
-    if (!contract || !signer || !isYourTurn || txPending) return;
+    if (!contract || !signer || !isYourTurn || txPending || gameOver) return;
 
     try {
       setTxPending(true);
@@ -124,7 +149,7 @@ const ArenaPVP = () => {
         {renderPlayer(opponent, "Lawan")}
       </div>
 
-      {isYourTurn ? (
+      {!gameOver && isYourTurn && (
         <div className="mt-6 flex justify-center gap-4">
           <button
             onClick={() => handleAction(1)}
@@ -148,7 +173,15 @@ const ArenaPVP = () => {
             Heal
           </button>
         </div>
-      ) : (
+      )}
+
+      {gameOver && (
+        <div className="mt-6 text-center text-xl text-red-400 font-bold">
+          Pertandingan Selesai! {winner === player?.address ? "Kamu menang!" : "Kamu kalah!"}
+        </div>
+      )}
+
+      {!isYourTurn && !gameOver && (
         <p className="mt-6 text-center text-yellow-400">Menunggu giliran lawan...</p>
       )}
     </div>
