@@ -1,25 +1,27 @@
-import { Routes, Route } from "react-router-dom";
-import Home from "../pages/Home";
-import ArenaPVP from "../pages/ArenaPVP";
-import ArenaPVE from "../pages/ArenaPVE";
-import JoinPVP from "../pages/JoinPVP";
-import BattlePVP from "../pages/BattlePVP";
-import GameStatus from "../components/ui/GameStatus";
-import NotFound from "../pages/NotFound";
+// src/App.jsx
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Navbar from "./components/ui/Navbar";
+import Home from "./pages/Home";
+import ArenaPVP from "./pages/ArenaPVP";
+import JoinPVP from "./pages/JoinPVP";
+import ArenaPVE from "./pages/ArenaPVE";
+import NotFound from "./pages/NotFound";
 
-const AppRoutes = () => {
+const App = () => {
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/pvp" element={<ArenaPVP />} />
-      <Route path="/pve" element={<ArenaPVE />} />
-      <Route path="/join-pvp" element={<JoinPVP />} />
-      <Route path="/battle-pvp" element={<BattlePVP />} />
-      <Route path="/arena-pvp/:opponent" element={<BattlePVP />} /> {/* ✅ Route dinamis */}
-      <Route path="/game-status" element={<GameStatus />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <Router>
+      <div className="min-h-screen bg-gray-900 text-white">
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/arena-pvp" element={<ArenaPVP />} />
+          <Route path="/join-pvp" element={<JoinPVP />} />
+          <Route path="/arena-pve" element={<ArenaPVE />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
+    </Router>
   );
 };
 
-export default AppRoutes;
+export default App;
