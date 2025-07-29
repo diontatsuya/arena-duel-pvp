@@ -46,21 +46,25 @@ const ArenaPVP = () => {
 
     setIsJoining(true);
     try {
+      const userAddress = await signer.getAddress();
+      const currentBattle = await contract.getBattle(userAddress);
+
+      const alreadyInBattle =
+        currentBattle &&
+        (currentBattle.player1 !== ethers.ZeroAddress || currentBattle.player2 !== ethers.ZeroAddress) &&
+        currentBattle.winner === ethers.ZeroAddress;
+
+      if (alreadyInBattle) {
+        alert("Kamu sudah berada dalam battle aktif.");
+        navigate("/waiting");
+        setIsJoining(false);
+        return;
+      }
+
       const tx = await contract.joinBattle();
       await tx.wait();
 
-      const userAddress = await signer.getAddress();
-      const battle = await contract.getBattle(userAddress);
-
-      const isInBattle =
-        battle &&
-        (battle.player1 !== ethers.ZeroAddress || battle.player2 !== ethers.ZeroAddress);
-
-      if (isInBattle) {
-        navigate("/waiting");
-      } else {
-        alert("Gagal menemukan battle aktif. Coba lagi.");
-      }
+      navigate("/waiting");
     } catch (error) {
       console.error("Gagal join match:", error);
       alert("Gagal join matchmaking. Pastikan cukup saldo dan wallet aktif.");
@@ -73,7 +77,7 @@ const ArenaPVP = () => {
   }, []);
 
   return (
-    <div className="p-6">
+    <div className="p-6 text-center">
       <h1 className="text-3xl font-bold mb-4">Arena PvP</h1>
       {walletAddress ? (
         <div className="mb-4">
