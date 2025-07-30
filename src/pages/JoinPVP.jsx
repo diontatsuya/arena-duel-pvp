@@ -31,17 +31,18 @@ const JoinPVP = () => {
         await tx.wait();
         console.log("Transaksi dikonfirmasi.");
 
-        // Polling status matchmaking
         interval = setInterval(async () => {
           try {
-            const status = await contract.getStatus(account);
-            const player2 = status[2];
-            console.log("Status matchmaking:", status);
+            const battleId = await contract.getPlayerBattle(account);
+            if (battleId.toString() !== "0") {
+              const battle = await contract.battles(battleId);
+              const player2 = battle.player2.addr;
 
-            if (player2 !== ethers.ZeroAddress) {
-              clearInterval(interval);
-              setIsMatched(true);
-              setTimeout(() => navigate("/arena-pvp"), 1500);
+              if (player2 !== ethers.constants.AddressZero) {
+                clearInterval(interval);
+                setIsMatched(true);
+                setTimeout(() => navigate("/arena-pvp"), 1500);
+              }
             }
           } catch (err) {
             console.error("Gagal memeriksa status:", err);
