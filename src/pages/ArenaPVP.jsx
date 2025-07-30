@@ -27,8 +27,10 @@ const ArenaPVP = () => {
 
       const currentBattleId = await contract.playerToBattleId(walletAddress);
 
-      if (currentBattleId.toString() !== "0") {
+      if (currentBattleId.gt(0)) {
         setBattleId(currentBattleId.toString());
+      } else {
+        setBattleId(null);
       }
     } catch (error) {
       console.error("Gagal mengecek status battle:", error);
