@@ -46,25 +46,15 @@ const ArenaPVP = () => {
     setIsJoining(true);
     try {
       const userAddress = await signer.getAddress();
-      const currentBattle = await contract.getBattle(userAddress);
+      const battleId = await contract.getPlayerBattle(userAddress);
 
-      console.log("Battle saat ini:", currentBattle);
-
-      const player1 = currentBattle?.player1 || ethers.ZeroAddress;
-      const player2 = currentBattle?.player2 || ethers.ZeroAddress;
-      const winner = currentBattle?.winner || ethers.ZeroAddress;
-
-      const alreadyInBattle =
-        (player1 !== ethers.ZeroAddress || player2 !== ethers.ZeroAddress) &&
-        winner === ethers.ZeroAddress;
-
-      if (alreadyInBattle) {
+      if (battleId && battleId.toString() !== "0") {
         alert("Kamu sudah berada dalam battle aktif.");
         navigate("/waiting");
         return;
       }
 
-      const tx = await contract.joinBattle();
+      const tx = await contract.joinMatchmaking();
       await tx.wait();
 
       navigate("/waiting");
