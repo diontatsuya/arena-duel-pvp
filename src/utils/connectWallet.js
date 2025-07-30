@@ -37,10 +37,12 @@ export async function connectWalletAndCheckNetwork() {
           });
         } catch (addError) {
           console.error("Gagal menambahkan jaringan Somnia:", addError);
+          alert("Gagal menambahkan jaringan Somnia.");
           return null;
         }
       } else {
         console.error("Gagal pindah jaringan:", switchError);
+        alert("Gagal mengganti jaringan ke Somnia.");
         return null;
       }
     }
@@ -48,9 +50,10 @@ export async function connectWalletAndCheckNetwork() {
 
   let accounts;
   try {
-    accounts = await provider.send("eth_requestAccounts", []);
+    accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
   } catch (err) {
     console.error("Gagal meminta akses akun:", err);
+    alert("Gagal meminta akses akun.");
     return null;
   }
 
