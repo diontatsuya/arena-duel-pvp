@@ -1,80 +1,66 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
+import { useNavigate } from "react-router-dom";
 import { CONTRACT_ADDRESS } from "../utils/constants";
 import { contractABI } from "../utils/contractABI";
-import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
 
 const JoinPVP = () => {
-  const [isMatched, setIsMatched] = useState(false);
-  const [checking, setChecking] = useState(true);
-  const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const [walletAddress, setWalletAddress] = useState(null);
+  const [contract, setContract] = useState(null);
+  const [isJoining, setIsJoining] = useState(false);
 
   useEffect(() => {
-    let interval;
+    const init = async () => {
+      if (window.ethereum) {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        setWalletAddress(address);
+        const gameContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+        setContract(gameContract);
 
-    const joinAndCheckMatch = async () => {
-      const wallet = await connectWalletAndCheckNetwork();
-      if (!wallet) {
-        setError("Gagal menghubungkan wallet atau jaringan salah.");
-        setChecking(false);
-        return;
-      }
-
-      const { signer, account } = wallet;
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-
-      try {
-        const tx = await contract.joinMatchmaking();
-        console.log("Transaksi joinMatchmaking dikirim:", tx.hash);
-        await tx.wait();
-        console.log("Transaksi dikonfirmasi.");
-
-        interval = setInterval(async () => {
-          try {
-            const battleId = await contract.getPlayerBattle(account);
-            if (battleId.toString() !== "0") {
-              const battle = await contract.battles(battleId);
-              const player2 = battle.player2.addr;
-
-              if (player2 !== ethers.constants.AddressZero) {
-                clearInterval(interval);
-                setIsMatched(true);
-                setTimeout(() => navigate("/arena-pvp"), 1500);
-              }
-            }
-          } catch (err) {
-            console.error("Gagal memeriksa status:", err);
-            setError("Gagal memeriksa status matchmaking.");
-            clearInterval(interval);
-            setChecking(false);
+        try {
+          const battleId = await gameContract.playerToBattle(address);
+          if (battleId > 0) {
+            console.log("Sudah dalam battle, langsung masuk.");
+            navigate("/arena-battle");
           }
-        }, 3000);
-      } catch (err) {
-        console.error("Gagal join matchmaking:", err);
-        setError("Gagal join matchmaking. Pastikan cukup saldo STT.");
-        setChecking(false);
+        } catch (err) {
+          console.error("Gagal cek battleId:", err);
+        }
       }
     };
 
-    joinAndCheckMatch();
-
-    return () => clearInterval(interval);
+    init();
   }, [navigate]);
 
+  const handleJoin = async () => {
+    if (!contract || !walletAddress) return;
+    setIsJoining(true);
+    try {
+      const tx = await contract.joinMatchmaking();
+      await tx.wait();
+      console.log("Berhasil join matchmaking:", tx.hash);
+      navigate("/arena-battle");
+    } catch (err) {
+      console.error("Gagal join matchmaking:", err);
+      alert(err?.reason || "Gagal join matchmaking");
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
   return (
-    <div className="text-center mt-20">
-      <h1 className="text-3xl font-bold mb-4">Menunggu Lawan PvP...</h1>
-      <p className="text-lg">
-        {isMatched
-          ? "Lawan ditemukan! Mengalihkan ke Arena PvP..."
-          : checking
-          ? "Mencari lawan, harap tunggu sebentar..."
-          : error
-          ? error
-          : "Gagal memeriksa status matchmaking."}
-      </p>
+    <div className="p-4 text-center">
+      <h1 className="text-2xl mb-4">Gabung PvP</h1>
+      <button
+        className="px-6 py-2 bg-purple-700 text-white rounded hover:bg-purple-800 disabled:opacity-50"
+        onClick={handleJoin}
+        disabled={isJoining}
+      >
+        {isJoining ? "Menghubungkan..." : "Gabung PvP"}
+      </button>
     </div>
   );
 };
