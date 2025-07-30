@@ -19,10 +19,10 @@ export async function connectWalletAndCheckNetwork() {
     return null;
   }
 
-  const provider = new ethers.providers.Web3Provider(window.ethereum);
-  const { chainId } = await provider.getNetwork();
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  const network = await provider.getNetwork();
 
-  if (chainId !== parseInt(SOMNIA_CHAIN_ID, 16)) {
+  if (network.chainId !== parseInt(SOMNIA_CHAIN_ID, 16)) {
     try {
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
@@ -46,9 +46,15 @@ export async function connectWalletAndCheckNetwork() {
     }
   }
 
-  const accounts = await provider.send("eth_requestAccounts", []);
-  const signer = provider.getSigner();
+  let accounts;
+  try {
+    accounts = await provider.send("eth_requestAccounts", []);
+  } catch (err) {
+    console.error("Gagal meminta akses akun:", err);
+    return null;
+  }
 
+  const signer = await provider.getSigner();
   return {
     provider,
     signer,
