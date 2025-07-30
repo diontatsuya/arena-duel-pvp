@@ -5,29 +5,26 @@ import { CONTRACT_ADDRESS } from "../utils/constants";
 import { contractABI } from "../utils/contractABI";
 import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
 
-const SOMNIA_CHAIN_ID = 50312;
-
 const ArenaPVP = () => {
   const navigate = useNavigate();
   const [walletAddress, setWalletAddress] = useState(null);
   const [battleId, setBattleId] = useState(null);
 
   const connectWallet = async () => {
-    const address = await connectWalletAndCheckNetwork(SOMNIA_CHAIN_ID);
-    if (address) {
-      setWalletAddress(address);
+    const wallet = await connectWalletAndCheckNetwork();
+    if (wallet && wallet.account) {
+      setWalletAddress(wallet.account);
+      return wallet;
     }
+    return null;
   };
 
-  const checkBattleStatus = async () => {
+  const checkBattleStatus = async (signer, address) => {
     try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+      const currentBattleId = await contract.playerToBattle(address);
 
-      const currentBattleId = await contract.playerToBattleId(walletAddress);
-
-      if (currentBattleId.gt(0)) {
+      if (currentBattleId > 0) {
         setBattleId(currentBattleId.toString());
       } else {
         setBattleId(null);
@@ -46,14 +43,14 @@ const ArenaPVP = () => {
   };
 
   useEffect(() => {
-    connectWallet();
+    const init = async () => {
+      const wallet = await connectWallet();
+      if (wallet) {
+        await checkBattleStatus(wallet.signer, wallet.account);
+      }
+    };
+    init();
   }, []);
-
-  useEffect(() => {
-    if (walletAddress) {
-      checkBattleStatus();
-    }
-  }, [walletAddress]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
