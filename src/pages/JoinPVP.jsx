@@ -21,10 +21,10 @@ const JoinPVP = () => {
         setContract(gameContract);
 
         try {
-          const battleId = await gameContract.playerToBattle(address);
+          const battleId = await gameContract.playerToBattleId(address);
           if (battleId > 0) {
-            console.log("Sudah dalam battle, langsung masuk.");
-            navigate("/arena-battle");
+            console.log("Sudah dalam battle, redirect ke arena.");
+            navigate(`/arena-battle/${battleId}`);
           }
         } catch (err) {
           console.error("Gagal cek battleId:", err);
@@ -38,14 +38,30 @@ const JoinPVP = () => {
   const handleJoin = async () => {
     if (!contract || !walletAddress) return;
     setIsJoining(true);
+
     try {
+      const battleId = await contract.playerToBattleId(walletAddress);
+      if (battleId > 0) {
+        console.log("Sudah dalam battle, redirect ke arena.");
+        navigate(`/arena-battle/${battleId}`);
+        return;
+      }
+
       const tx = await contract.joinMatchmaking();
       await tx.wait();
       console.log("Berhasil join matchmaking:", tx.hash);
-      navigate("/arena-battle");
+
+      const newBattleId = await contract.playerToBattleId(walletAddress);
+      navigate(`/arena-battle/${newBattleId}`);
     } catch (err) {
       console.error("Gagal join matchmaking:", err);
-      alert(err?.reason || "Gagal join matchmaking");
+      if (err?.reason?.includes("Already in a battle")) {
+        const fallbackId = await contract.playerToBattleId(walletAddress);
+        alert("Kamu sudah dalam battle, langsung masuk ke arena.");
+        navigate(`/arena-battle/${fallbackId}`);
+      } else {
+        alert(err?.reason || "Gagal join matchmaking");
+      }
     } finally {
       setIsJoining(false);
     }
