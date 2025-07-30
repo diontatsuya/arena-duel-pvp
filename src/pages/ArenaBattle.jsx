@@ -46,28 +46,37 @@ const ArenaBattle = () => {
 
   const fetchGameStatus = async () => {
     try {
-      const game = await contract.getPlayer(myAddress);
-      const opponentAddr = game.opponent;
+      const battleId = await contract.getPlayerBattle(myAddress);
+      if (battleId.toString() === "0") {
+        setStatus("Kamu belum dalam pertandingan.");
+        return;
+      }
+
+      const battle = await contract.getBattle(battleId);
+
+      const isPlayer1 = battle.player1.toLowerCase() === myAddress.toLowerCase();
+      const opponentAddr = isPlayer1 ? battle.player2 : battle.player1;
 
       if (opponentAddr === ethers.ZeroAddress) {
         setStatus("Menunggu lawan...");
         return;
       }
 
-      const myData = {
-        hp: Number(game.hp),
-        lastAction: game.lastAction,
-      };
+      const playerData = await contract.players(myAddress);
+      const opponentData = await contract.players(opponentAddr);
 
-      const opponentDataRaw = await contract.getPlayer(opponentAddr);
-      const opponentData = {
-        hp: Number(opponentDataRaw.hp),
-        lastAction: opponentDataRaw.lastAction,
-      };
+      setPlayer({
+        hp: Number(playerData.hp),
+        lastAction: playerData.lastAction,
+      });
 
-      setPlayer(myData);
-      setOpponent(opponentData);
-      setIsMyTurn(game.isTurn);
+      setOpponent({
+        hp: Number(opponentData.hp),
+        lastAction: opponentData.lastAction,
+      });
+
+      const isTurn = battle.turn.toLowerCase() === myAddress.toLowerCase();
+      setIsMyTurn(isTurn);
       setStatus("Pertandingan berlangsung!");
     } catch (error) {
       console.error("Gagal memuat status pertandingan:", error);
