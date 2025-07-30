@@ -52,30 +52,27 @@ const ArenaBattle = () => {
         return;
       }
 
-      const battle = await contract.getBattle(battleId);
+      const battle = await contract.battles(battleId);
 
-      const isPlayer1 = battle.player1.toLowerCase() === myAddress.toLowerCase();
-      const opponentAddr = isPlayer1 ? battle.player2 : battle.player1;
+      const isPlayer1 = battle.player1.addr.toLowerCase() === myAddress.toLowerCase();
+      const opponentAddr = isPlayer1 ? battle.player2.addr : battle.player1.addr;
 
       if (opponentAddr === ethers.ZeroAddress) {
         setStatus("Menunggu lawan...");
         return;
       }
 
-      const playerData = await contract.players(myAddress);
-      const opponentData = await contract.players(opponentAddr);
-
       setPlayer({
-        hp: Number(playerData.hp),
-        lastAction: playerData.lastAction,
+        hp: Number(isPlayer1 ? battle.player1.hp : battle.player2.hp),
+        lastAction: isPlayer1 ? battle.player1.lastAction : battle.player2.lastAction,
       });
 
       setOpponent({
-        hp: Number(opponentData.hp),
-        lastAction: opponentData.lastAction,
+        hp: Number(isPlayer1 ? battle.player2.hp : battle.player1.hp),
+        lastAction: isPlayer1 ? battle.player2.lastAction : battle.player1.lastAction,
       });
 
-      const isTurn = battle.turn.toLowerCase() === myAddress.toLowerCase();
+      const isTurn = battle.currentTurn.toLowerCase() === myAddress.toLowerCase();
       setIsMyTurn(isTurn);
       setStatus("Pertandingan berlangsung!");
     } catch (error) {
@@ -88,15 +85,12 @@ const ArenaBattle = () => {
     if (!contract) return;
     setIsLoading(true);
     try {
-      let tx;
-      if (action === "attack") {
-        tx = await contract.attack();
-      } else if (action === "defend") {
-        tx = await contract.defend();
-      } else if (action === "heal") {
-        tx = await contract.heal();
-      }
+      let actionCode;
+      if (action === "attack") actionCode = 0;
+      else if (action === "defend") actionCode = 1;
+      else if (action === "heal") actionCode = 2;
 
+      const tx = await contract.takeAction(actionCode);
       await tx.wait();
       fetchGameStatus();
     } catch (err) {
@@ -109,7 +103,7 @@ const ArenaBattle = () => {
     if (!contract) return;
     setIsLoading(true);
     try {
-      const tx = await contract.leaveGame();
+      const tx = await contract.leaveBattle();
       await tx.wait();
       navigate("/arena-pvp");
     } catch (err) {
