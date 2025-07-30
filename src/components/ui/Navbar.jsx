@@ -1,11 +1,20 @@
-// src/components/ui/Navbar.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ethers } from "ethers";
 
 const Navbar = () => {
   const [walletAddress, setWalletAddress] = useState(null);
   const [signature, setSignature] = useState(null);
+
+  useEffect(() => {
+    const savedAddress = localStorage.getItem("walletAddress");
+    const savedSignature = localStorage.getItem("signature");
+
+    if (savedAddress && savedSignature) {
+      setWalletAddress(savedAddress);
+      setSignature(savedSignature);
+    }
+  }, []);
 
   const connectWallet = async () => {
     if (!window.ethereum) {
@@ -19,14 +28,17 @@ const Navbar = () => {
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
 
-      // Tanda tangan pesan
-      const message = "Login to Arena Duel";
-      const signedMessage = await signer.signMessage(message);
+      let signedMessage = localStorage.getItem("signature");
+      if (!signedMessage) {
+        const message = "Login to Arena Duel";
+        signedMessage = await signer.signMessage(message);
+        localStorage.setItem("signature", signedMessage);
+      }
 
       setWalletAddress(address);
       setSignature(signedMessage);
-      console.log("Wallet:", address);
-      console.log("Signature:", signedMessage);
+
+      localStorage.setItem("walletAddress", address);
     } catch (err) {
       console.error("Gagal koneksi wallet:", err);
     }
@@ -35,6 +47,8 @@ const Navbar = () => {
   const disconnectWallet = () => {
     setWalletAddress(null);
     setSignature(null);
+    localStorage.removeItem("walletAddress");
+    localStorage.removeItem("signature");
   };
 
   return (
