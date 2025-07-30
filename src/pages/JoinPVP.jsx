@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESS } from "../utils/constants";
 import { contractABI } from "../utils/contractABI";
+import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
 
 const JoinPVP = () => {
   const [isMatched, setIsMatched] = useState(false);
@@ -13,29 +14,27 @@ const JoinPVP = () => {
   useEffect(() => {
     let interval;
 
-    const checkMatchStatus = async () => {
-      if (!window.ethereum) {
-        setError("Wallet tidak ditemukan.");
+    const joinAndCheckMatch = async () => {
+      const wallet = await connectWalletAndCheckNetwork();
+      if (!wallet) {
+        setError("Gagal menghubungkan wallet atau jaringan salah.");
         setChecking(false);
         return;
       }
 
-      try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const userAddress = await signer.getAddress();
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+      const { signer, account } = wallet;
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
 
-        // Join matchmaking
+      try {
         const tx = await contract.joinMatchmaking();
-        console.log("Mengirim transaksi joinMatchmaking:", tx.hash);
+        console.log("Transaksi joinMatchmaking dikirim:", tx.hash);
         await tx.wait();
         console.log("Transaksi dikonfirmasi.");
 
-        // Mulai pengecekan status setiap 3 detik
+        // Polling status matchmaking
         interval = setInterval(async () => {
           try {
-            const status = await contract.getStatus(userAddress);
+            const status = await contract.getStatus(account);
             const player2 = status[2];
             console.log("Status matchmaking:", status);
 
@@ -53,12 +52,12 @@ const JoinPVP = () => {
         }, 3000);
       } catch (err) {
         console.error("Gagal join matchmaking:", err);
-        setError("Gagal join matchmaking. Pastikan wallet terhubung dan cukup saldo.");
+        setError("Gagal join matchmaking. Pastikan cukup saldo STT.");
         setChecking(false);
       }
     };
 
-    checkMatchStatus();
+    joinAndCheckMatch();
 
     return () => clearInterval(interval);
   }, [navigate]);
