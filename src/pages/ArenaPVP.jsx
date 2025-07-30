@@ -38,17 +38,25 @@ const ArenaPVP = () => {
   };
 
   const handleJoinMatch = async () => {
-    if (!contract || !signer) return;
+    if (!contract || !signer) {
+      alert("Kontrak belum siap.");
+      return;
+    }
 
     setIsJoining(true);
     try {
       const userAddress = await signer.getAddress();
       const currentBattle = await contract.getBattle(userAddress);
 
+      console.log("Battle saat ini:", currentBattle);
+
+      const player1 = currentBattle?.player1 || ethers.ZeroAddress;
+      const player2 = currentBattle?.player2 || ethers.ZeroAddress;
+      const winner = currentBattle?.winner || ethers.ZeroAddress;
+
       const alreadyInBattle =
-        currentBattle &&
-        (currentBattle.player1 !== ethers.ZeroAddress || currentBattle.player2 !== ethers.ZeroAddress) &&
-        currentBattle.winner === ethers.ZeroAddress;
+        (player1 !== ethers.ZeroAddress || player2 !== ethers.ZeroAddress) &&
+        winner === ethers.ZeroAddress;
 
       if (alreadyInBattle) {
         alert("Kamu sudah berada dalam battle aktif.");
@@ -62,7 +70,7 @@ const ArenaPVP = () => {
       navigate("/waiting");
     } catch (error) {
       console.error("Gagal join match:", error);
-      alert("Gagal join matchmaking. Pastikan cukup saldo dan wallet aktif.");
+      alert("Gagal join matchmaking. Pastikan cukup saldo dan wallet aktif.\n\n" + (error?.reason || error?.message));
     }
     setIsJoining(false);
   };
