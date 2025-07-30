@@ -8,118 +8,69 @@ import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
 const ArenaPVP = () => {
   const navigate = useNavigate();
   const [walletAddress, setWalletAddress] = useState(null);
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
-  const [signature, setSignature] = useState(null);
   const [isJoining, setIsJoining] = useState(false);
-  const [networkValid, setNetworkValid] = useState(true);
 
-  const connectWallet = async () => {
-    const wallet = await connectWalletAndCheckNetwork();
-    if (!wallet) {
-      setNetworkValid(false);
-      return;
-    }
+  useEffect(() => {
+    const init = async () => {
+      const { signer, address } = await connectWalletAndCheckNetwork();
+      setWalletAddress(address);
+      const contractInstance = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+      setContract(contractInstance);
 
-    const { provider, signer, account } = wallet;
-    const signed = await signer.signMessage("Login to Arena Duel");
-    const gameContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-
-    setProvider(provider);
-    setSigner(signer);
-    setContract(gameContract);
-    setWalletAddress(account);
-    setSignature(signed);
-    setNetworkValid(true);
-
-    console.log("Wallet:", account);
-    console.log("Signature:", signed);
-  };
-
-  const handleJoinMatch = async () => {
-    if (!contract || !signer) {
-      alert("Kontrak belum siap.");
-      return;
-    }
-
-    setIsJoining(true);
-    try {
-      const userAddress = await signer.getAddress();
-      const battleId = await contract.getPlayerBattle(userAddress);
-
+      const battleId = await contractInstance.getBattleId(address);
       if (battleId && battleId.toString() !== "0") {
-        const battle = await contract.getBattleStatus(battleId);
+        alert("Kamu sudah berada dalam battle aktif.");
+        navigate("/waiting");
+      }
+    };
 
-        const isPlayerInBattle =
-          battle.player1.toLowerCase() === userAddress.toLowerCase() ||
-          battle.player2.toLowerCase() === userAddress.toLowerCase();
+    init();
+  }, [navigate]);
 
-        const isBattleOngoing = battle.state === 0; // 0 = ACTIVE, asumsi enum
+  const handleJoinBattle = async () => {
+    if (!contract || !walletAddress) return;
 
-        if (isPlayerInBattle && isBattleOngoing) {
-          alert("Kamu sudah berada dalam battle aktif.");
-          navigate("/waiting");
-          return;
-        }
+    try {
+      setIsJoining(true);
+
+      const battleId = await contract.getBattleId(walletAddress);
+      if (battleId && battleId.toString() !== "0") {
+        alert("Kamu sudah berada dalam battle aktif.");
+        navigate("/waiting");
+        return;
       }
 
-      const tx = await contract.joinMatchmaking();
+      const tx = await contract.joinBattle();
       await tx.wait();
 
       navigate("/waiting");
-    } catch (error) {
-      console.error("Gagal join match:", error);
-      alert(
-        "Gagal join matchmaking. Pastikan cukup saldo dan wallet aktif.\n\n" +
-          (error?.reason || error?.message)
-      );
+    } catch (err) {
+      console.error("Gagal join battle:", err);
+      alert("Terjadi kesalahan saat join battle.");
+    } finally {
+      setIsJoining(false);
     }
-    setIsJoining(false);
   };
 
-  useEffect(() => {
-    connectWallet();
-
-    if (window.ethereum) {
-      window.ethereum.on("chainChanged", () => window.location.reload());
-    }
-  }, []);
-
   return (
-    <div className="p-6 text-center">
+    <div className="flex flex-col items-center justify-center min-h-screen text-white">
       <h1 className="text-3xl font-bold mb-4">Arena PvP</h1>
 
       {walletAddress ? (
-        <div className="mb-4">
-          <p className={networkValid ? "text-green-400" : "text-yellow-400"}>
-            Status: {networkValid ? "Terhubung" : "Jaringan Salah"}
-          </p>
-          <p className="text-sm break-all">{walletAddress}</p>
-          <p className="text-xs break-all text-gray-400">
-            Signature: {signature?.slice(0, 10)}...
-          </p>
-        </div>
+        <>
+          <p className="mb-4">Terhubung sebagai: {walletAddress}</p>
+          <button
+            onClick={handleJoinBattle}
+            disabled={isJoining}
+            className="bg-blue-600 px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {isJoining ? "Bergabung..." : "Gabung PvP"}
+          </button>
+        </>
       ) : (
-        <button
-          onClick={connectWallet}
-          className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 mb-4"
-        >
-          Hubungkan Wallet
-        </button>
+        <p className="text-lg">Menghubungkan wallet...</p>
       )}
-
-      <button
-        onClick={handleJoinMatch}
-        className={`${
-          isJoining || !networkValid
-            ? "bg-gray-500"
-            : "bg-purple-600 hover:bg-purple-700"
-        } px-4 py-2 rounded`}
-        disabled={isJoining || !walletAddress || !networkValid}
-      >
-        {isJoining ? "Gabung PvP..." : "Gabung PvP"}
-      </button>
     </div>
   );
 };
