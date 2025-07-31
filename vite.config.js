@@ -1,15 +1,18 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { resolve } from "path";
+import { viteStaticCopy } from "vite-plugin-static-copy";
 
 export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": resolve(__dirname, "src"),
-    },
-  },
-  build: {
-    outDir: "dist",
-  },
+  base: "/",
+  plugins: [
+    react(),
+    viteStaticCopy({
+      targets: [
+        {
+          src: "public/_redirects",
+          dest: ".", // salin ke root output (dist/)
+        },
+      ],
+    }),
+  ],
 });
