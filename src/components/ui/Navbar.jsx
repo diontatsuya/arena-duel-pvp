@@ -37,7 +37,6 @@ const Navbar = () => {
 
       setWalletAddress(address);
       setSignature(signedMessage);
-
       localStorage.setItem("walletAddress", address);
     } catch (err) {
       console.error("Gagal koneksi wallet:", err);
@@ -53,20 +52,20 @@ const Navbar = () => {
 
   return (
     <nav className="bg-gray-800 p-4 flex justify-between items-center">
-      <div className="text-xl font-bold">
+      <div className="text-xl font-bold text-white">
         <Link to="/">Arena Duel</Link>
       </div>
       <div className="flex space-x-4 items-center">
-        <Link to="/" className="hover:underline">
+        <Link to="/" className="text-white hover:underline">
           Home
         </Link>
-        <Link to="/join-pvp" className="hover:underline">
+        <Link to="/join-pvp" className="text-white hover:underline">
           Join PvP
         </Link>
-        <Link to="/arena-pvp" className="hover:underline">
+        <Link to="/arena-pvp" className="text-white hover:underline">
           Arena PvP
         </Link>
-        <Link to="/arena-pve" className="hover:underline">
+        <Link to="/arena-pve" className="text-white hover:underline">
           Arena PvE
         </Link>
         {walletAddress ? (
@@ -84,7 +83,7 @@ const Navbar = () => {
         ) : (
           <button
             onClick={connectWallet}
-            className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded"
+            className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-white"
           >
             Hubungkan Wallet
           </button>
