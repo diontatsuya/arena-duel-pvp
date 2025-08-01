@@ -1,99 +1,98 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
-import { connectWallet } from "../utils/connectWallet";
-import { SOMNIA_CHAIN_ID, CONTRACT_ADDRESS } from "../utils/constants";
 import { contractABI } from "../utils/contractABI";
+import { CONTRACT_ADDRESS } from "../utils/constants";
 import BattleStatus from "../components/pvp/BattleStatus";
 import BattleControls from "../components/pvp/BattleControls";
+import { connectWallet } from "../utils/connectWallet";
+import { getBattle } from "../gameLogic/pvp/getBattle";
 
 const ArenaBattle = () => {
-  const { battleId } = useParams();
   const navigate = useNavigate();
-
   const [walletAddress, setWalletAddress] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [provider, setProvider] = useState(null);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [battleData, setBattleData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleConnectWallet = async () => {
+  const fetchBattleData = async (wallet, provider) => {
     try {
-      const result = await connectWallet(SOMNIA_CHAIN_ID);
-      if (result) {
-        setWalletAddress(result.account);
-        setSigner(result.signer);
-        setProvider(result.provider);
-        setError(null);
-      } else {
-        setError("Wallet tidak ditemukan atau gagal terhubung.");
-      }
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
+      const battle = await getBattle(contract, wallet);
+      setBattleData(battle);
     } catch (err) {
-      console.error("Wallet connect error:", err);
-      setError("Gagal koneksi wallet.");
+      console.error("Gagal memuat data battle:", err);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
+  const init = async () => {
+    const { wallet, signer, provider } = await connectWallet();
+    if (!wallet) {
+      alert("Gagal menghubungkan wallet");
+      return navigate("/");
+    }
+    setWalletAddress(wallet);
+    setSigner(signer);
+    await fetchBattleData(wallet, provider);
+  };
+
   useEffect(() => {
-    handleConnectWallet();
+    init();
   }, []);
 
+  if (isLoading) return <div className="p-4">Memuat battle...</div>;
+
+  if (!battleData || !battleData.exists) {
+    return (
+      <div className="p-4">
+        <p>Kamu belum berada di dalam battle.</p>
+        <button
+          className="mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded"
+          onClick={() => navigate("/arena-pvp")}
+        >
+          🔙 Kembali ke Arena
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-black text-white p-6 flex flex-col items-center">
-      <h1 className="text-3xl font-bold mb-4">Arena Battle ID #{battleId}</h1>
+    <div className="p-4">
+      <h2 className="text-2xl font-bold mb-4">Arena Battle</h2>
 
-      {loading && <p className="text-blue-400">🔄 Menghubungkan wallet...</p>}
-      {error && !loading && <p className="text-red-500 mb-4">❌ {error}</p>}
+      {/* Status Pertarungan */}
+      <BattleStatus battleData={battleData} walletAddress={walletAddress} />
 
-      {!loading && walletAddress ? (
-        <>
-          <BattleStatus
-            battleId={battleId}
-            walletAddress={walletAddress}
-            signer={signer}
-            provider={provider}
-          />
-          <BattleControls
-            battleId={battleId}
-            walletAddress={walletAddress}
-            signer={signer}
-            provider={provider}
-          />
+      {/* Kontrol Pertarungan */}
+      <BattleControls
+        signer={signer}
+        walletAddress={walletAddress}
+        battleData={battleData}
+        refreshBattleData={() => fetchBattleData(walletAddress, signer.provider)}
+      />
 
-          {/* Tombol Tinggalkan Battle */}
-          <button
-            onClick={async () => {
-              try {
-                if (!signer) return alert("Wallet belum terhubung");
-                const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-                const tx = await contract.leaveBattle(battleId);
-                await tx.wait();
-                alert("Berhasil keluar dari battle");
-                navigate("/arena-pvp");
-              } catch (err) {
-                console.error("Gagal keluar dari battle:", err);
-                alert("Gagal keluar dari battle");
-              }
-            }}
-            className="mt-4 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded"
-          >
-            ❌ Tinggalkan Battle
-          </button>
-        </>
-      ) : (
-        !loading &&
-        !error && (
-          <p className="text-yellow-400">🔌 Silakan hubungkan wallet untuk melanjutkan.</p>
-        )
-      )}
-
+      {/* Tombol Keluar Battle */}
       <button
-        onClick={() => navigate("/arena-pvp")}
-        className="mt-6 bg-gray-700 hover:bg-gray-800 text-white py-2 px-4 rounded"
+        onClick={async () => {
+          try {
+            if (!signer) return alert("Wallet belum terhubung");
+
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+            const tx = await contract.leaveBattle(); // ✅ TANPA ARGUMEN SESUAI ABI
+            await tx.wait();
+
+            alert("Berhasil keluar dari battle");
+            navigate("/arena-pvp");
+          } catch (err) {
+            console.error("Gagal keluar dari battle:", err);
+            alert("Gagal keluar dari battle");
+          }
+        }}
+        className="mt-4 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded"
       >
-        🔙 Kembali ke Arena PvP
+        ❌ Tinggalkan Battle
       </button>
     </div>
   );
