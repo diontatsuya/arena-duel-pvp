@@ -5,36 +5,34 @@ import { CONTRACT_ADDRESS } from "../utils/constants";
 import { contractABI } from "../utils/contractABI";
 import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
 
-const SOMNIA_CHAIN_ID = 50312;
-
 const JoinPVP = () => {
   const navigate = useNavigate();
   const [walletAddress, setWalletAddress] = useState(null);
+  const [signer, setSigner] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const connectWallet = async () => {
     try {
-      const address = await connectWalletAndCheckNetwork(SOMNIA_CHAIN_ID);
-      if (address) setWalletAddress(address);
+      const connection = await connectWalletAndCheckNetwork();
+      if (connection) {
+        setWalletAddress(connection.account);
+        setSigner(connection.signer);
+      }
     } catch (err) {
       setError("Gagal hubungkan wallet. Pastikan jaringan Somnia.");
     }
   };
 
   const joinMatchmaking = async () => {
-    if (!walletAddress) return;
+    if (!walletAddress || !signer) return;
     setLoading(true);
     setError(null);
     try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-
       const tx = await contract.joinMatchmaking();
       await tx.wait();
 
-      // Dapatkan ID battle terbaru user
       const battleId = await contract.playerToBattleId(walletAddress);
       navigate(`/arena-battle/${battleId}`);
     } catch (err) {
