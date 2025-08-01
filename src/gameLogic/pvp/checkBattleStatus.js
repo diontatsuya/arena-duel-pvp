@@ -11,16 +11,16 @@ import { contractABI } from "../../utils/contractABI";
 export async function checkBattleStatus(walletAddress, signer) {
   try {
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-    const battleId = await contract.getBattleId(walletAddress);
-    
-    // Validasi battleId (misalnya kosong/null)
-    if (battleId && battleId !== ethers.ZeroAddress && battleId !== "0x0000000000000000000000000000000000000000") {
-      return battleId;
+    const battleId = await contract.getPlayerBattle(walletAddress);
+
+    // Cek apakah battleId valid (tidak nol)
+    if (battleId && battleId > 0n) {
+      return battleId.toString(); // kembalikan dalam format string
     } else {
       return null;
     }
   } catch (err) {
-    console.error("Error saat checkBattleStatus:", err);
+    console.error("Gagal memeriksa status battle:", err);
     return null;
   }
 }
