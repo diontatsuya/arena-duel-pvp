@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
+import { connectWallet } from "../utils/connectWallet";
 import { SOMNIA_CHAIN_ID } from "../utils/constants";
 import BattleStatus from "../components/pvp/BattleStatus";
 import BattleControls from "../components/pvp/BattleControls";
@@ -17,7 +17,7 @@ const ArenaBattle = () => {
 
   const connectWallet = async () => {
     try {
-      const result = await connectWalletAndCheckNetwork(SOMNIA_CHAIN_ID);
+      const result = await connectWallet(SOMNIA_CHAIN_ID);
       if (result) {
         setWalletAddress(result.account);
         setSigner(result.signer);
