@@ -1,104 +1,85 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+// src/pages/JoinPVP.jsx
+import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import { CONTRACT_ADDRESS } from "../utils/constants";
 import contractABI from "../utils/contractABI";
-import { useWallet } from "../utils/connectWallet";
+import { CONTRACT_ADDRESS } from "../utils/constants";
+import { connectWallet } from "../utils/connectWallet";
 
 const JoinPVP = () => {
-  const { walletAddress, signer } = useWallet();
+  const [wallet, setWallet] = useState(null);
+  const [battleStatus, setBattleStatus] = useState(null); // null, "inBattle", "idle"
   const [loading, setLoading] = useState(false);
-  const [inBattle, setInBattle] = useState(false);
-  const [battleId, setBattleId] = useState(null);
-  const [error, setError] = useState(null);
-  const navigate = useNavigate();
 
-  const checkBattleStatus = async () => {
-    if (!walletAddress || !signer) return;
+  useEffect(() => {
+    const init = async () => {
+      const walletAddress = await connectWallet(setWallet);
+      if (walletAddress) {
+        await checkBattleStatus(walletAddress);
+      }
+    };
+    init();
+  }, []);
 
+  const checkBattleStatus = async (walletAddress) => {
     try {
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-      const id = await contract.playerToBattleId(walletAddress);
-      const battle = await contract.battles(id);
-
-      const isActive =
-        id.toString() !== "0" &&
-        (battle.player1.addr !== ethers.constants.AddressZero || battle.player2.addr !== ethers.constants.AddressZero) &&
-        battle.state === 0;
-
-      if (isActive) {
-        setInBattle(true);
-        setBattleId(id.toString());
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, await provider.getSigner());
+      const battle = await contract.getBattle(walletAddress);
+      if (battle && battle.player1 !== ethers.ZeroAddress && battle.player2 !== ethers.ZeroAddress) {
+        setBattleStatus("inBattle");
       } else {
-        setInBattle(false);
-        setBattleId(null);
+        setBattleStatus("idle");
       }
     } catch (err) {
-      console.error("Gagal cek battle:", err);
+      console.error("Error checking battle status:", err);
     }
   };
 
-  const joinMatchmaking = async () => {
-    if (!walletAddress || !signer) return;
+  const joinBattle = async () => {
     setLoading(true);
-    setError(null);
-
     try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-
-      await checkBattleStatus(); // cek ulang
-      if (inBattle && battleId) {
-        navigate(`/arena-battle/${battleId}`);
-        return;
-      }
-
-      const tx = await contract.joinMatchmaking();
+      const tx = await contract.joinBattle();
       await tx.wait();
-
-      const newId = await contract.playerToBattleId(walletAddress);
-      navigate(`/arena-battle/${newId}`);
+      setBattleStatus("inBattle");
+      alert("Berhasil masuk ke battle!");
     } catch (err) {
-      console.error("Join matchmaking error:", err);
-      setError("Gagal join matchmaking.");
-    } finally {
-      setLoading(false);
+      console.error("Gagal join battle:", err);
+      alert("Gagal join battle!");
     }
+    setLoading(false);
   };
 
   const leaveBattle = async () => {
-    if (!walletAddress || !signer || !battleId) return;
     setLoading(true);
-    setError(null);
-
     try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
       const tx = await contract.leaveBattle();
       await tx.wait();
-
-      setInBattle(false);
-      setBattleId(null);
+      setBattleStatus("idle");
+      alert("Berhasil keluar dari battle.");
     } catch (err) {
       console.error("Gagal keluar dari battle:", err);
-      setError("Gagal keluar dari battle.");
-    } finally {
-      setLoading(false);
+      alert("Gagal keluar dari battle.");
     }
+    setLoading(false);
   };
 
-  useEffect(() => {
-    checkBattleStatus();
-  }, [walletAddress]);
-
   return (
-    <div className="p-4 max-w-xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">PVP Matchmaking</h1>
+    <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center">
+      <h1 className="text-3xl font-bold">Join PvP</h1>
+      <p>Wallet: {wallet || "Belum terhubung"}</p>
 
-      {inBattle ? (
+      {battleStatus === "inBattle" ? (
         <>
-          <p className="mb-2">Kamu sudah berada dalam battle (ID: {battleId})</p>
+          <p className="text-yellow-500">Kamu sudah berada dalam battle.</p>
           <button
             onClick={leaveBattle}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+            className="px-4 py-2 mt-2 text-white bg-red-500 rounded hover:bg-red-600"
             disabled={loading}
           >
             {loading ? "Leaving..." : "Leave Battle"}
@@ -106,15 +87,13 @@ const JoinPVP = () => {
         </>
       ) : (
         <button
-          onClick={joinMatchmaking}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+          onClick={joinBattle}
+          className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
           disabled={loading}
         >
-          {loading ? "Joining..." : "Join Matchmaking"}
+          {loading ? "Joining..." : "Join Battle"}
         </button>
       )}
-
-      {error && <p className="text-red-500 mt-2">{error}</p>}
     </div>
   );
 };
