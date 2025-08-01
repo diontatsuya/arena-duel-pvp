@@ -20,15 +20,19 @@ const ArenaBattle = () => {
   const [status, setStatus] = useState("🔄 Memuat status pertandingan...");
   const [isLoading, setIsLoading] = useState(false);
 
+  const [initError, setInitError] = useState(false); // ➕ untuk fallback
+
   useEffect(() => {
     const initialize = async () => {
       if (!window.ethereum) {
         setStatus("❌ MetaMask tidak ditemukan.");
+        setInitError(true);
         return;
       }
 
       try {
         const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
+        await tempProvider.send("eth_requestAccounts", []);
         const tempSigner = tempProvider.getSigner();
         const tempContract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, tempSigner);
         const address = await tempSigner.getAddress();
@@ -40,6 +44,7 @@ const ArenaBattle = () => {
       } catch (err) {
         console.error("Gagal inisialisasi:", err);
         setStatus("❌ Gagal menginisialisasi kontrak.");
+        setInitError(true);
       }
     };
 
@@ -127,6 +132,27 @@ const ArenaBattle = () => {
     }
     setIsLoading(false);
   };
+
+  // 🛡️ Fallback jika error
+  if (initError) {
+    return (
+      <div className="p-6 text-center text-white bg-gray-900 min-h-screen flex items-center justify-center">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">❌ Gagal Memuat Arena</h2>
+          <p className="text-gray-400">{status}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ⏳ Tunggu hingga data siap
+  if (!contract || !myAddress || !player || !opponent) {
+    return (
+      <div className="p-6 text-center text-white bg-gray-900 min-h-screen flex items-center justify-center">
+        <p>{status}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-3xl mx-auto text-white bg-gray-900 min-h-screen">
