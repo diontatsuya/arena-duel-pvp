@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
+import { useNavigate } from "react-router-dom";
 
-const CONTRACT_ADDRESS = "0x03892903e86e6db9bbcc86bdff571ca1360184b7"; // ganti jika berubah
+const CONTRACT_ADDRESS = "0x03892903e86e6db9bbcc86bdff571ca1360184b7";
 
 const JoinPVP = () => {
   const [wallet, setWallet] = useState("");
-  const [battleStatus, setBattleStatus] = useState("checking"); // "idle" | "inBattle" | "checking"
+  const [battleStatus, setBattleStatus] = useState("checking");
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState("");
+  const navigate = useNavigate();
 
   const connectWallet = async () => {
     try {
@@ -94,6 +96,13 @@ const JoinPVP = () => {
   useEffect(() => {
     if (wallet) checkBattleStatus(wallet);
   }, [wallet]);
+
+  // ⬇️ Tambahkan ini agar auto redirect jika inBattle
+  useEffect(() => {
+    if (battleStatus === "inBattle") {
+      navigate("/arena-battle");
+    }
+  }, [battleStatus, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white p-4">
