@@ -1,29 +1,24 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ethers } from "ethers";
-import { CONTRACT_ADDRESS, SOMNIA_CHAIN_ID } from "../utils/constants";
-import { contractABI } from "../utils/contractABI";
-import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
+import { connectWallet } from "../utils/connectWallet";
+import { BattleStatus } from "../components/ui/BattleStatus"; // ✅ ganti import sesuai file BattleStatus.jsx
 
 const ArenaPVP = () => {
   const navigate = useNavigate();
   const [walletAddress, setWalletAddress] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [provider, setProvider] = useState(null);
   const [battleId, setBattleId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const connectWallet = async () => {
+  const handleConnectWallet = async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await connectWalletAndCheckNetwork(SOMNIA_CHAIN_ID);
+      const result = await connectWallet();
       if (result) {
         setWalletAddress(result.account);
         setSigner(result.signer);
-        setProvider(result.provider);
-        setError(null);
       } else {
         setError("Gagal menghubungkan wallet.");
       }
@@ -35,16 +30,13 @@ const ArenaPVP = () => {
     }
   };
 
-  const checkBattleStatus = async () => {
+  const fetchBattleStatus = async () => {
     if (!walletAddress || !signer) return;
-
     setLoading(true);
-    setError(null);
     try {
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-      const currentBattleId = await contract.playerToBattleId(walletAddress);
-      if (currentBattleId && currentBattleId.gt(0)) {
-        setBattleId(currentBattleId.toString());
+      const currentBattleId = await checkBattleStatus(walletAddress, signer);
+      if (currentBattleId) {
+        setBattleId(currentBattleId);
       } else {
         setBattleId(null);
       }
@@ -56,6 +48,16 @@ const ArenaPVP = () => {
     }
   };
 
+  useEffect(() => {
+    handleConnectWallet();
+  }, []);
+
+  useEffect(() => {
+    if (walletAddress && signer) {
+      fetchBattleStatus();
+    }
+  }, [walletAddress, signer]);
+
   const handleJoinClick = () => {
     navigate("/join-pvp");
   };
@@ -65,16 +67,6 @@ const ArenaPVP = () => {
       navigate(`/arena-battle/${battleId}`);
     }
   };
-
-  useEffect(() => {
-    connectWallet();
-  }, []);
-
-  useEffect(() => {
-    if (walletAddress && signer) {
-      checkBattleStatus();
-    }
-  }, [walletAddress, signer]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-800 to-black text-white p-6">
@@ -117,7 +109,7 @@ const ArenaPVP = () => {
         )}
         {!loading && !walletAddress && (
           <button
-            onClick={connectWallet}
+            onClick={handleConnectWallet}
             className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition"
           >
             🔌 Hubungkan Wallet
