@@ -1,26 +1,32 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ethers } from "ethers";
-import { CONTRACT_ADDRESS } from "../utils/constants";
-import { contractABI } from "../utils/contractABI";
 import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
+import { SOMNIA_CHAIN_ID } from "../utils/constants";
 import BattleStatus from "../components/pvp/BattleStatus";
 import BattleControls from "../components/pvp/BattleControls";
-
-const SOMNIA_CHAIN_ID = 50312;
 
 const ArenaBattle = () => {
   const { battleId } = useParams();
   const navigate = useNavigate();
+
   const [walletAddress, setWalletAddress] = useState(null);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const connectWallet = async () => {
     try {
       const address = await connectWalletAndCheckNetwork(SOMNIA_CHAIN_ID);
-      if (address) setWalletAddress(address);
+      if (address) {
+        setWalletAddress(address);
+        setError(null);
+      } else {
+        setError("Wallet tidak ditemukan atau belum terhubung.");
+      }
     } catch (err) {
+      console.error("Wallet connect error:", err);
       setError("Gagal koneksi wallet.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -32,15 +38,21 @@ const ArenaBattle = () => {
     <div className="min-h-screen bg-black text-white p-6 flex flex-col items-center">
       <h1 className="text-3xl font-bold mb-4">Arena Battle ID #{battleId}</h1>
 
-      {error && <p className="text-red-500 mb-4">❌ {error}</p>}
+      {loading && <p className="text-blue-400">🔄 Menghubungkan wallet...</p>}
 
-      {walletAddress ? (
+      {error && !loading && (
+        <p className="text-red-500 mb-4">❌ {error}</p>
+      )}
+
+      {!loading && walletAddress ? (
         <>
           <BattleStatus battleId={battleId} walletAddress={walletAddress} />
           <BattleControls battleId={battleId} walletAddress={walletAddress} />
         </>
       ) : (
-        <p className="text-yellow-400">🔌 Silakan hubungkan wallet untuk melanjutkan.</p>
+        !loading && !error && (
+          <p className="text-yellow-400">🔌 Silakan hubungkan wallet untuk melanjutkan.</p>
+        )
       )}
 
       <button
