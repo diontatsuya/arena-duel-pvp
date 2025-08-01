@@ -1,98 +1,138 @@
-// src/pages/JoinPVP.jsx
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import contractABI from "../utils/contractABI";
-import { CONTRACT_ADDRESS } from "../utils/constants";
-import { connectWallet } from "../utils/connectWallet";
+import contractABI from "../utils/contractABI.json";
+
+const CONTRACT_ADDRESS = "0x95dd66c55214a3d603fe1657e22f710692fcbd9"; // ganti jika berubah
 
 const JoinPVP = () => {
-  const [wallet, setWallet] = useState(null);
-  const [battleStatus, setBattleStatus] = useState(null); // null, "inBattle", "idle"
+  const [wallet, setWallet] = useState("");
+  const [battleStatus, setBattleStatus] = useState("checking"); // "idle" | "inBattle" | "checking"
   const [loading, setLoading] = useState(false);
+  const [txHash, setTxHash] = useState("");
 
-  useEffect(() => {
-    const init = async () => {
-      const walletAddress = await connectWallet(setWallet);
-      if (walletAddress) {
-        await checkBattleStatus(walletAddress);
-      }
-    };
-    init();
-  }, []);
+  const connectWallet = async () => {
+    try {
+      const [address] = await window.ethereum.request({ method: "eth_requestAccounts" });
+      setWallet(address);
+    } catch (err) {
+      console.error("Gagal konek wallet:", err);
+    }
+  };
 
   const checkBattleStatus = async (walletAddress) => {
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, await provider.getSigner());
-      const battle = await contract.getBattle(walletAddress);
-      if (battle && battle.player1 !== ethers.ZeroAddress && battle.player2 !== ethers.ZeroAddress) {
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+
+      const battleId = await contract.getPlayerBattle(walletAddress);
+      if (battleId === 0n) {
+        setBattleStatus("idle");
+        return;
+      }
+
+      const battle = await contract.battles(battleId);
+      const player1 = battle.player1.addr;
+      const player2 = battle.player2.addr;
+
+      if (
+        player1 !== ethers.ZeroAddress &&
+        player2 !== ethers.ZeroAddress
+      ) {
         setBattleStatus("inBattle");
       } else {
         setBattleStatus("idle");
       }
     } catch (err) {
-      console.error("Error checking battle status:", err);
+      console.error("Gagal cek battle:", err);
+      setBattleStatus("idle");
     }
   };
 
-  const joinBattle = async () => {
-    setLoading(true);
+  const joinMatchmaking = async () => {
     try {
+      setLoading(true);
+      setTxHash("");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-      const tx = await contract.joinBattle();
+
+      const tx = await contract.joinMatchmaking();
       await tx.wait();
-      setBattleStatus("inBattle");
-      alert("Berhasil masuk ke battle!");
+      setTxHash(tx.hash);
+      await checkBattleStatus(wallet);
     } catch (err) {
-      console.error("Gagal join battle:", err);
-      alert("Gagal join battle!");
+      console.error("Gagal join matchmaking:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const leaveBattle = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
+      setTxHash("");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+
       const tx = await contract.leaveBattle();
       await tx.wait();
-      setBattleStatus("idle");
-      alert("Berhasil keluar dari battle.");
+      setTxHash(tx.hash);
+      await checkBattleStatus(wallet);
     } catch (err) {
       console.error("Gagal keluar dari battle:", err);
-      alert("Gagal keluar dari battle.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-center">
-      <h1 className="text-3xl font-bold">Join PvP</h1>
-      <p>Wallet: {wallet || "Belum terhubung"}</p>
+  useEffect(() => {
+    connectWallet();
+  }, []);
 
-      {battleStatus === "inBattle" ? (
-        <>
-          <p className="text-yellow-500">Kamu sudah berada dalam battle.</p>
-          <button
-            onClick={leaveBattle}
-            className="px-4 py-2 mt-2 text-white bg-red-500 rounded hover:bg-red-600"
-            disabled={loading}
-          >
-            {loading ? "Leaving..." : "Leave Battle"}
-          </button>
-        </>
-      ) : (
+  useEffect(() => {
+    if (wallet) checkBattleStatus(wallet);
+  }, [wallet]);
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white p-4">
+      <h1 className="text-3xl font-bold mb-4">Join PVP Match</h1>
+      {wallet && <p className="mb-2">Connected: {wallet}</p>}
+      <p className="mb-4">Status: {battleStatus === "checking" ? "Checking..." : battleStatus}</p>
+
+      {battleStatus === "idle" && (
         <button
-          onClick={joinBattle}
-          className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
+          className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg mb-4 disabled:opacity-50"
+          onClick={joinMatchmaking}
           disabled={loading}
         >
-          {loading ? "Joining..." : "Join Battle"}
+          {loading ? "Joining..." : "Join Matchmaking"}
         </button>
+      )}
+
+      {battleStatus === "inBattle" && (
+        <button
+          className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg mb-4 disabled:opacity-50"
+          onClick={leaveBattle}
+          disabled={loading}
+        >
+          {loading ? "Leaving..." : "Leave Battle"}
+        </button>
+      )}
+
+      {txHash && (
+        <p className="text-sm text-green-400">
+          ✅ Tx sent:{" "}
+          <a
+            href={`https://testnet.somniascan.io/tx/${txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            {txHash.slice(0, 10)}...
+          </a>
+        </p>
       )}
     </div>
   );
