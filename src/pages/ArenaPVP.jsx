@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
-import { CONTRACT_ADDRESS } from "../utils/constants";
+import { CONTRACT_ADDRESS, SOMNIA_CHAIN_ID } from "../utils/constants";
 import { contractABI } from "../utils/contractABI";
 import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
-
-const SOMNIA_CHAIN_ID = 50312;
 
 const ArenaPVP = () => {
   const navigate = useNavigate();
@@ -14,14 +12,21 @@ const ArenaPVP = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fungsi koneksi wallet
   const connectWallet = async () => {
     setLoading(true);
     setError(null);
     try {
+      if (!window.ethereum) {
+        setError("MetaMask tidak ditemukan. Gunakan browser dengan MetaMask terpasang.");
+        setLoading(false);
+        return;
+      }
+
       const address = await connectWalletAndCheckNetwork(SOMNIA_CHAIN_ID);
       if (address) {
         setWalletAddress(address);
+      } else {
+        setError("Gagal mendapatkan alamat wallet.");
       }
     } catch (err) {
       console.error("Gagal koneksi wallet:", err);
@@ -31,7 +36,6 @@ const ArenaPVP = () => {
     }
   };
 
-  // Cek apakah player sedang dalam battle
   const checkBattleStatus = async () => {
     if (!walletAddress || typeof window.ethereum === "undefined") return;
 
@@ -82,9 +86,11 @@ const ArenaPVP = () => {
       <h1 className="text-4xl font-extrabold mb-6 tracking-wide">Arena PvP</h1>
 
       <div className="mb-4 text-lg text-center">
-        {error && <p className="text-red-400">❌ {error}</p>}
-        {!walletAddress && !error && <p>🔌 Status: Belum terhubung wallet</p>}
-        {walletAddress && loading && <p>⏳ Mengecek status battle...</p>}
+        {loading && <p className="text-blue-400">🔄 Memuat data...</p>}
+        {error && !loading && <p className="text-red-400">❌ {error}</p>}
+        {!walletAddress && !error && !loading && (
+          <p className="text-yellow-400">🔌 Status: Wallet belum terhubung</p>
+        )}
         {walletAddress && !loading && !error && (
           <p>
             🧙 Status:{" "}
@@ -114,7 +120,7 @@ const ArenaPVP = () => {
             🎮 Lanjutkan Battle
           </button>
         )}
-        {!walletAddress && (
+        {!loading && !walletAddress && (
           <button
             onClick={connectWallet}
             className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition"
