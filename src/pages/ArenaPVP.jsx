@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { connectWallet } from "../utils/connectWallet";
+import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
 import { BattleStatus } from "../components/pvp/BattleStatus";
 
 const ArenaPVP = () => {
