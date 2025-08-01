@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { connectWallet } from "../utils/connectWallet";
-import { BattleStatus } from "../components/ui/BattleStatus"; // ✅ ganti import sesuai file BattleStatus.jsx
+import { BattleStatus } from "../components/pvp/BattleStatus";
 
 const ArenaPVP = () => {
   const navigate = useNavigate();
