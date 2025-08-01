@@ -15,28 +15,28 @@ const ArenaBattle = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const connectWallet = async () => {
-    try {
-      const result = await connectWallet(SOMNIA_CHAIN_ID);
-      if (result) {
-        setWalletAddress(result.account);
-        setSigner(result.signer);
-        setProvider(result.provider);
-        setError(null);
-      } else {
-        setError("Wallet tidak ditemukan atau gagal terhubung.");
-      }
-    } catch (err) {
-      console.error("Wallet connect error:", err);
-      setError("Gagal koneksi wallet.");
-    } finally {
-      setLoading(false);
+  const handleConnectWallet = async () => {
+  try {
+    const result = await connectWallet(SOMNIA_CHAIN_ID);
+    if (result) {
+      setWalletAddress(result.account);
+      setSigner(result.signer);
+      setProvider(result.provider);
+      setError(null);
+    } else {
+      setError("Wallet tidak ditemukan atau gagal terhubung.");
     }
-  };
+  } catch (err) {
+    console.error("Wallet connect error:", err);
+    setError("Gagal koneksi wallet.");
+  } finally {
+    setLoading(false);
+  }
+};
 
-  useEffect(() => {
-    connectWallet();
-  }, []);
+useEffect(() => {
+  handleConnectWallet();
+}, []);
 
   return (
     <div className="min-h-screen bg-black text-white p-6 flex flex-col items-center">
