@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import contractABI from "../utils/contractABI.json";
 
-const CONTRACT_ADDRESS = "0x95dd66c55214a3d603fe1657e22f710692fcbd9"; // ganti jika berubah
+const CONTRACT_ADDRESS = "0x03892903e86e6db9bbcc86bdff571ca1360184b7"; // ganti jika berubah
 
 const JoinPVP = () => {
   const [wallet, setWallet] = useState("");
