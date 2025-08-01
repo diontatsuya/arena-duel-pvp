@@ -9,9 +9,9 @@ const JoinPVP = () => {
   const navigate = useNavigate();
   const [walletAddress, setWalletAddress] = useState(null);
   const [signer, setSigner] = useState(null);
+  const [battleId, setBattleId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [existingBattleId, setExistingBattleId] = useState(null);
 
   const connectWallet = async () => {
     try {
@@ -25,19 +25,25 @@ const JoinPVP = () => {
     }
   };
 
-  const checkExistingBattle = async (account, signerInstance) => {
+  const checkBattle = async () => {
+    if (!walletAddress || !signer) return;
     try {
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signerInstance);
-      const battleId = await contract.playerToBattleId(account);
-      const battle = await contract.battles(battleId);
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+      const id = await contract.playerToBattleId(walletAddress);
+      const battle = await contract.battles(id);
 
-      if (battle.active) {
-        setExistingBattleId(battleId);
+      if (
+        id.toString() !== "0" &&
+        battle.player1 !== ethers.constants.AddressZero &&
+        battle.winner === ethers.constants.AddressZero
+      ) {
+        setBattleId(id.toString());
       } else {
-        setExistingBattleId(null);
+        setBattleId(null); // tidak aktif battle
       }
     } catch (err) {
       console.error("Gagal cek battle:", err);
+      setBattleId(null);
     }
   };
 
@@ -50,8 +56,8 @@ const JoinPVP = () => {
       const tx = await contract.joinMatchmaking();
       await tx.wait();
 
-      const battleId = await contract.playerToBattleId(walletAddress);
-      navigate(`/arena-battle/${battleId}`);
+      const id = await contract.playerToBattleId(walletAddress);
+      navigate(`/arena-battle/${id}`);
     } catch (err) {
       console.error("Join matchmaking error:", err);
       setError("Gagal join matchmaking.");
@@ -68,10 +74,9 @@ const JoinPVP = () => {
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
       const tx = await contract.leaveBattle();
       await tx.wait();
-
-      setExistingBattleId(null);
+      setBattleId(null); // reset status
     } catch (err) {
-      console.error("Leave battle error:", err);
+      console.error("Gagal keluar dari battle:", err);
       setError("Gagal keluar dari battle.");
     } finally {
       setLoading(false);
@@ -79,14 +84,14 @@ const JoinPVP = () => {
   };
 
   useEffect(() => {
-    if (walletAddress && signer) {
-      checkExistingBattle(walletAddress, signer);
-    }
-  }, [walletAddress, signer]);
-
-  useEffect(() => {
     connectWallet();
   }, []);
+
+  useEffect(() => {
+    if (walletAddress && signer) {
+      checkBattle();
+    }
+  }, [walletAddress, signer]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-6">
@@ -94,7 +99,34 @@ const JoinPVP = () => {
 
       {error && <p className="text-red-400 mb-4">{error}</p>}
 
-      {!walletAddress && (
+      {walletAddress ? (
+        battleId ? (
+          <div className="flex flex-col gap-4 items-center">
+            <p className="text-green-400">Kamu sudah dalam battle #{battleId}</p>
+            <button
+              onClick={() => navigate(`/arena-battle/${battleId}`)}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded-lg"
+            >
+              ➡️ Lanjutkan Battle
+            </button>
+            <button
+              onClick={leaveBattle}
+              disabled={loading}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg"
+            >
+              ❌ Keluar dari Battle
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={joinMatchmaking}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md"
+          >
+            {loading ? "⏳ Bergabung..." : "⚔️ Join PvP"}
+          </button>
+        )
+      ) : (
         <button
           onClick={connectWallet}
           className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg shadow-md"
@@ -102,37 +134,6 @@ const JoinPVP = () => {
           🔌 Hubungkan Wallet
         </button>
       )}
-
-      {walletAddress && existingBattleId ? (
-        <>
-          <p className="mb-4 text-yellow-400">
-            ⚔️ Kamu sedang dalam battle aktif (ID: {existingBattleId.toString()})
-          </p>
-          <div className="flex gap-4">
-            <button
-              onClick={() => navigate(`/arena-battle/${existingBattleId}`)}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-md"
-            >
-              ▶️ Lanjutkan Battle
-            </button>
-            <button
-              onClick={leaveBattle}
-              disabled={loading}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg shadow-md"
-            >
-              ❌ Keluar Battle
-            </button>
-          </div>
-        </>
-      ) : walletAddress ? (
-        <button
-          onClick={joinMatchmaking}
-          disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md"
-        >
-          {loading ? "⏳ Bergabung..." : "⚔️ Join PvP"}
-        </button>
-      ) : null}
     </div>
   );
 };
