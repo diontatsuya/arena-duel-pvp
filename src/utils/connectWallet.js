@@ -13,7 +13,7 @@ const SOMNIA_PARAMS = {
   blockExplorerUrls: ["https://shannon-explorer.somnia.network"],
 };
 
-export async function connectWalletAndCheckNetwork(expectedChainIdHex = SOMNIA_CHAIN_ID) {
+export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
   if (typeof window.ethereum === "undefined") {
     alert("MetaMask belum terpasang!");
     return null;
