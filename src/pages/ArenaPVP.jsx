@@ -8,6 +8,8 @@ import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
 const ArenaPVP = () => {
   const navigate = useNavigate();
   const [walletAddress, setWalletAddress] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [provider, setProvider] = useState(null);
   const [battleId, setBattleId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -16,17 +18,14 @@ const ArenaPVP = () => {
     setLoading(true);
     setError(null);
     try {
-      if (!window.ethereum) {
-        setError("MetaMask tidak ditemukan. Gunakan browser dengan MetaMask terpasang.");
-        setLoading(false);
-        return;
-      }
-
-      const address = await connectWalletAndCheckNetwork(SOMNIA_CHAIN_ID);
-      if (address) {
-        setWalletAddress(address);
+      const result = await connectWalletAndCheckNetwork(SOMNIA_CHAIN_ID);
+      if (result) {
+        setWalletAddress(result.account);
+        setSigner(result.signer);
+        setProvider(result.provider);
+        setError(null);
       } else {
-        setError("Gagal mendapatkan alamat wallet.");
+        setError("Gagal menghubungkan wallet.");
       }
     } catch (err) {
       console.error("Gagal koneksi wallet:", err);
@@ -37,16 +36,12 @@ const ArenaPVP = () => {
   };
 
   const checkBattleStatus = async () => {
-    if (!walletAddress || typeof window.ethereum === "undefined") return;
+    if (!walletAddress || !signer) return;
 
     setLoading(true);
     setError(null);
-
     try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-
       const currentBattleId = await contract.playerToBattleId(walletAddress);
       if (currentBattleId && currentBattleId.gt(0)) {
         setBattleId(currentBattleId.toString());
@@ -76,10 +71,10 @@ const ArenaPVP = () => {
   }, []);
 
   useEffect(() => {
-    if (walletAddress) {
+    if (walletAddress && signer) {
       checkBattleStatus();
     }
-  }, [walletAddress]);
+  }, [walletAddress, signer]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-800 to-black text-white p-6">
