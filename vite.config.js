@@ -3,14 +3,14 @@ import react from "@vitejs/plugin-react";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 
 export default defineConfig({
-  base: "/",
+  base: "./", // ganti dari "/" ke "./" agar tidak blank saat deploy
   plugins: [
     react(),
     viteStaticCopy({
       targets: [
         {
           src: "public/_redirects",
-          dest: ".", // salin ke root output (dist/)
+          dest: ".", // tetap benar
         },
       ],
     }),
