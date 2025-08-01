@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESS } from "../utils/constants";
-import contractABI from "../utils/contractABI.json";
+import contractABI from "../utils/contractABI";
 import { useWallet } from "../utils/connectWallet";
 
 const JoinPVP = () => {
