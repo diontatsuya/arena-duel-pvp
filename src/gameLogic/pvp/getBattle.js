@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
-import { contractABI } from "../utils/constants/contractABI";
-import { CONTRACT_ADDRESS } from "../utils/constants";
+import { contractABI } from "../../utils/constants/contractABI";
+import { CONTRACT_ADDRESS } from "../../utils/constants";
 
 export const getBattle = async (provider, battleId) => {
   try {
