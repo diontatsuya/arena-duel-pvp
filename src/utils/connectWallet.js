@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 
-const SOMNIA_CHAIN_ID = "0xc488"; // 50312 (hex)
+const SOMNIA_CHAIN_ID = "0xc488"; // 50312
 const SOMNIA_PARAMS = {
   chainId: SOMNIA_CHAIN_ID,
   chainName: "Somnia Testnet",
@@ -13,8 +13,8 @@ const SOMNIA_PARAMS = {
   blockExplorerUrls: ["https://shannon-explorer.somnia.network"],
 };
 
-export async function connectWalletAndCheckNetwork() {
-  if (!window.ethereum) {
+export async function connectWalletAndCheckNetwork(expectedChainIdHex = SOMNIA_CHAIN_ID) {
+  if (typeof window.ethereum === "undefined") {
     alert("MetaMask belum terpasang!");
     return null;
   }
@@ -22,11 +22,11 @@ export async function connectWalletAndCheckNetwork() {
   const provider = new ethers.BrowserProvider(window.ethereum);
   const network = await provider.getNetwork();
 
-  if (network.chainId !== parseInt(SOMNIA_CHAIN_ID, 16)) {
+  if (network.chainId !== parseInt(expectedChainIdHex, 16)) {
     try {
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: SOMNIA_CHAIN_ID }],
+        params: [{ chainId: expectedChainIdHex }],
       });
     } catch (switchError) {
       if (switchError.code === 4902) {
@@ -57,7 +57,13 @@ export async function connectWalletAndCheckNetwork() {
     return null;
   }
 
+  if (!accounts || accounts.length === 0) {
+    alert("Tidak ada akun ditemukan di MetaMask.");
+    return null;
+  }
+
   const signer = await provider.getSigner();
+
   return {
     provider,
     signer,
