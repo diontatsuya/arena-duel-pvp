@@ -1,49 +1,40 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESS } from "../utils/constants";
-import { contractABI } from "../utils/contractABI";
-import { connectWalletAndCheckNetwork } from "../utils/connectWallet";
+import contractABI from "../utils/contractABI.json";
+import { useWallet } from "../utils/connectWallet";
 
 const JoinPVP = () => {
-  const navigate = useNavigate();
-  const [walletAddress, setWalletAddress] = useState(null);
-  const [signer, setSigner] = useState(null);
-  const [battleId, setBattleId] = useState(null);
+  const { walletAddress, signer } = useWallet();
   const [loading, setLoading] = useState(false);
+  const [inBattle, setInBattle] = useState(false);
+  const [battleId, setBattleId] = useState(null);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
-  const connectWallet = async () => {
-    try {
-      const connection = await connectWalletAndCheckNetwork();
-      if (connection) {
-        setWalletAddress(connection.account);
-        setSigner(connection.signer);
-      }
-    } catch (err) {
-      setError("Gagal hubungkan wallet. Pastikan jaringan Somnia.");
-    }
-  };
-
-  const checkBattle = async () => {
+  const checkBattleStatus = async () => {
     if (!walletAddress || !signer) return;
+
     try {
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
       const id = await contract.playerToBattleId(walletAddress);
       const battle = await contract.battles(id);
 
-      if (
+      const isActive =
         id.toString() !== "0" &&
-        battle.player1 !== ethers.constants.AddressZero &&
-        battle.winner === ethers.constants.AddressZero
-      ) {
+        (battle.player1.addr !== ethers.constants.AddressZero || battle.player2.addr !== ethers.constants.AddressZero) &&
+        battle.state === 0;
+
+      if (isActive) {
+        setInBattle(true);
         setBattleId(id.toString());
       } else {
-        setBattleId(null); // tidak aktif battle
+        setInBattle(false);
+        setBattleId(null);
       }
     } catch (err) {
       console.error("Gagal cek battle:", err);
-      setBattleId(null);
     }
   };
 
@@ -51,13 +42,21 @@ const JoinPVP = () => {
     if (!walletAddress || !signer) return;
     setLoading(true);
     setError(null);
+
     try {
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+
+      await checkBattleStatus(); // cek ulang
+      if (inBattle && battleId) {
+        navigate(`/arena-battle/${battleId}`);
+        return;
+      }
+
       const tx = await contract.joinMatchmaking();
       await tx.wait();
 
-      const id = await contract.playerToBattleId(walletAddress);
-      navigate(`/arena-battle/${id}`);
+      const newId = await contract.playerToBattleId(walletAddress);
+      navigate(`/arena-battle/${newId}`);
     } catch (err) {
       console.error("Join matchmaking error:", err);
       setError("Gagal join matchmaking.");
@@ -67,14 +66,17 @@ const JoinPVP = () => {
   };
 
   const leaveBattle = async () => {
-    if (!walletAddress || !signer) return;
+    if (!walletAddress || !signer || !battleId) return;
     setLoading(true);
     setError(null);
+
     try {
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
       const tx = await contract.leaveBattle();
       await tx.wait();
-      setBattleId(null); // reset status
+
+      setInBattle(false);
+      setBattleId(null);
     } catch (err) {
       console.error("Gagal keluar dari battle:", err);
       setError("Gagal keluar dari battle.");
@@ -84,56 +86,35 @@ const JoinPVP = () => {
   };
 
   useEffect(() => {
-    connectWallet();
-  }, []);
-
-  useEffect(() => {
-    if (walletAddress && signer) {
-      checkBattle();
-    }
-  }, [walletAddress, signer]);
+    checkBattleStatus();
+  }, [walletAddress]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-6">
-      <h1 className="text-3xl font-bold mb-4">Gabung Arena PvP</h1>
+    <div className="p-4 max-w-xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">PVP Matchmaking</h1>
 
-      {error && <p className="text-red-400 mb-4">{error}</p>}
-
-      {walletAddress ? (
-        battleId ? (
-          <div className="flex flex-col gap-4 items-center">
-            <p className="text-green-400">Kamu sudah dalam battle #{battleId}</p>
-            <button
-              onClick={() => navigate(`/arena-battle/${battleId}`)}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded-lg"
-            >
-              ➡️ Lanjutkan Battle
-            </button>
-            <button
-              onClick={leaveBattle}
-              disabled={loading}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg"
-            >
-              ❌ Keluar dari Battle
-            </button>
-          </div>
-        ) : (
+      {inBattle ? (
+        <>
+          <p className="mb-2">Kamu sudah berada dalam battle (ID: {battleId})</p>
           <button
-            onClick={joinMatchmaking}
+            onClick={leaveBattle}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
             disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md"
           >
-            {loading ? "⏳ Bergabung..." : "⚔️ Join PvP"}
+            {loading ? "Leaving..." : "Leave Battle"}
           </button>
-        )
+        </>
       ) : (
         <button
-          onClick={connectWallet}
-          className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg shadow-md"
+          onClick={joinMatchmaking}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+          disabled={loading}
         >
-          🔌 Hubungkan Wallet
+          {loading ? "Joining..." : "Join Matchmaking"}
         </button>
       )}
+
+      {error && <p className="text-red-500 mt-2">{error}</p>}
     </div>
   );
 };
