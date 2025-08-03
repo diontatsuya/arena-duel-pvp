@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ethers } from "ethers";
-import { CONTRACT_ADDRESS } from "../utils/constants";
-import { contractABI } from "../utils/contractABI";
 import { useWallet } from "../context/WalletContext";
 import { checkBattleStatus } from "../gameLogic/pvp/checkBattleStatus";
 
 const ArenaPVP = () => {
   const navigate = useNavigate();
   const { walletAddress, signer, loading } = useWallet();
+
   const [existingBattleId, setExistingBattleId] = useState(null);
   const [checkingBattle, setCheckingBattle] = useState(true);
 
@@ -19,8 +17,9 @@ const ArenaPVP = () => {
       try {
         setCheckingBattle(true);
         const battleId = await checkBattleStatus(walletAddress, signer);
-        console.log("Battle ID ditemukan:", battleId);
-        if (battleId !== null && battleId !== undefined && battleId !== 0) {
+
+        if (battleId && Number(battleId) > 0) {
+          console.log("Battle ID ditemukan:", battleId.toString());
           setExistingBattleId(battleId.toString());
         } else {
           setExistingBattleId(null);
@@ -42,17 +41,14 @@ const ArenaPVP = () => {
 
   const handleContinueBattle = () => {
     if (existingBattleId) {
-      console.log("Navigating to battle ID:", existingBattleId);
       navigate(`/arena-battle/${existingBattleId}`);
-    } else {
-      console.warn("Tidak ada Battle ID yang bisa dilanjutkan");
     }
   };
 
   if (loading || checkingBattle) {
     return (
       <div className="text-white text-center mt-10">
-        <p>Loading wallet dan status battle...</p>
+        <p>Memuat wallet dan status battle...</p>
       </div>
     );
   }
@@ -64,7 +60,8 @@ const ArenaPVP = () => {
       {existingBattleId ? (
         <>
           <p className="mb-4">
-            Kamu memiliki battle yang sedang berlangsung! ID: {existingBattleId}
+            Kamu memiliki battle yang sedang berlangsung! ID:{" "}
+            <span className="font-mono text-yellow-400">{existingBattleId}</span>
           </p>
           <button
             onClick={handleContinueBattle}
@@ -75,7 +72,7 @@ const ArenaPVP = () => {
         </>
       ) : (
         <>
-          <p className="mb-4">Belum ada battle aktif. Ayo mulai!</p>
+          <p className="mb-4">Belum ada battle aktif. Ayo mulai pertarungan!</p>
           <button
             onClick={handleJoinBattle}
             className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
