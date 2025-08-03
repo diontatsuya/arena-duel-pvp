@@ -1,65 +1,74 @@
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { WalletContext } from "../context/WalletContext";
+import { ethers } from "ethers";
+import { CONTRACT_ADDRESS } from "../utils/constants";
+import { contractABI } from "../utils/contractABI";
+import { useWallet } from "../context/WalletContext";
 import { checkBattleStatus } from "../gameLogic/pvp/checkBattleStatus";
 
 const ArenaPVP = () => {
   const navigate = useNavigate();
-  const { walletAddress, signer } = useContext(WalletContext);
-  const [status, setStatus] = useState("Memeriksa status...");
-  const [battleId, setBattleId] = useState(null);
-  const [error, setError] = useState("");
+  const { walletAddress, signer, loading } = useWallet();
+  const [existingBattleId, setExistingBattleId] = useState(null);
+  const [checkingBattle, setCheckingBattle] = useState(true);
 
-  // Cek status battle saat wallet sudah siap
   useEffect(() => {
-    const checkStatus = async () => {
+    const checkExistingBattle = async () => {
       if (!walletAddress || !signer) return;
 
-      try {
-        const activeBattleId = await checkBattleStatus(walletAddress, signer);
-        if (activeBattleId) {
-          setStatus("Sedang dalam pertarungan");
-          setBattleId(activeBattleId);
-        } else {
-          setStatus("Belum bergabung dalam pertarungan");
-          setBattleId(null);
-        }
-      } catch (err) {
-        setError("Gagal memeriksa status battle.");
-      }
+      setCheckingBattle(true);
+      const battleId = await checkBattleStatus(walletAddress, signer);
+      setExistingBattleId(battleId);
+      setCheckingBattle(false);
     };
-    checkStatus();
+
+    checkExistingBattle();
   }, [walletAddress, signer]);
 
-  const handleContinueBattle = () => {
-    if (!walletAddress || !signer || !battleId) {
-      alert("Gagal melanjutkan. Wallet belum terhubung atau tidak ada battle.");
-      return;
-    }
-    navigate(`/arena-battle/${battleId}`);
+  const handleJoinBattle = () => {
+    navigate("/join-pvp");
   };
 
+  const handleContinueBattle = () => {
+    if (existingBattleId) {
+      navigate(`/arena-battle/${existingBattleId}`);
+    }
+  };
+
+  if (loading || checkingBattle) {
+    return (
+      <div className="text-white text-center mt-10">
+        <p>Loading wallet and battle status...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-4">
-      <h2 className="text-2xl font-bold mb-4">Arena PVP</h2>
+    <div className="flex flex-col items-center justify-center min-h-screen text-white bg-black px-4">
+      <h1 className="text-3xl font-bold mb-6">Arena PVP</h1>
 
-      {error && (
-        <div className="text-red-600 font-semibold mb-2">{error}</div>
-      )}
-
-      <p className="mb-4">Status: {status}</p>
-
-      {battleId ? (
-        <button
-          className="px-4 py-2 bg-blue-600 text-white rounded"
-          onClick={handleContinueBattle}
-        >
-          Lanjutkan Battle
-        </button>
+      {existingBattleId ? (
+        <>
+          <p className="mb-4">
+            Kamu memiliki battle yang sedang berlangsung! ID: {existingBattleId}
+          </p>
+          <button
+            onClick={handleContinueBattle}
+            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-4 rounded"
+          >
+            Lanjutkan Battle
+          </button>
+        </>
       ) : (
-        <p className="text-gray-600">
-          Silakan bergabung dalam pertarungan dari halaman Join PVP.
-        </p>
+        <>
+          <p className="mb-4">Belum ada battle aktif. Ayo mulai!</p>
+          <button
+            onClick={handleJoinBattle}
+            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
+          >
+            Join PVP
+          </button>
+        </>
       )}
     </div>
   );
