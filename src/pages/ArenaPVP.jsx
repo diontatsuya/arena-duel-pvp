@@ -1,45 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { ethers } from "ethers";
-import { CONTRACT_ADDRESS } from "../utils/constants";
-import { contractABI } from "../utils/contractABI";
-import { connectWallet } from "../utils/connectWallet";
+import { WalletContext } from "../context/WalletContext";
 import { checkBattleStatus } from "../gameLogic/pvp/checkBattleStatus";
 
 const ArenaPVP = () => {
   const navigate = useNavigate();
-  const [walletAddress, setWalletAddress] = useState("");
-  const [signer, setSigner] = useState(null);
+  const { walletAddress, signer } = useContext(WalletContext);
   const [status, setStatus] = useState("Memeriksa status...");
   const [battleId, setBattleId] = useState(null);
   const [error, setError] = useState("");
-
-  // Koneksi wallet saat halaman dibuka
-  useEffect(() => {
-    const initWallet = async () => {
-      const { walletAddress, signer } = await connectWallet();
-      if (walletAddress && signer) {
-        setWalletAddress(walletAddress);
-        setSigner(signer);
-      } else {
-        setError("Gagal menghubungkan wallet.");
-      }
-    };
-    initWallet();
-  }, []);
 
   // Cek status battle saat wallet sudah siap
   useEffect(() => {
     const checkStatus = async () => {
       if (!walletAddress || !signer) return;
 
-      const activeBattleId = await checkBattleStatus(walletAddress, signer);
-      if (activeBattleId) {
-        setStatus("Sedang dalam pertarungan");
-        setBattleId(activeBattleId);
-      } else {
-        setStatus("Belum bergabung dalam pertarungan");
-        setBattleId(null);
+      try {
+        const activeBattleId = await checkBattleStatus(walletAddress, signer);
+        if (activeBattleId) {
+          setStatus("Sedang dalam pertarungan");
+          setBattleId(activeBattleId);
+        } else {
+          setStatus("Belum bergabung dalam pertarungan");
+          setBattleId(null);
+        }
+      } catch (err) {
+        setError("Gagal memeriksa status battle.");
       }
     };
     checkStatus();
@@ -63,16 +49,14 @@ const ArenaPVP = () => {
 
       <p className="mb-4">Status: {status}</p>
 
-      {battleId && (
+      {battleId ? (
         <button
           className="px-4 py-2 bg-blue-600 text-white rounded"
           onClick={handleContinueBattle}
         >
           Lanjutkan Battle
         </button>
-      )}
-
-      {!battleId && (
+      ) : (
         <p className="text-gray-600">
           Silakan bergabung dalam pertarungan dari halaman Join PVP.
         </p>
