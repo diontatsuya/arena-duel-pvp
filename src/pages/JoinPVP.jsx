@@ -1,50 +1,38 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { useNavigate } from "react-router-dom";
-
-const CONTRACT_ADDRESS = "0x03892903e86e6db9bbcc86bdff571ca1360184b7";
+import { WalletContext } from "../context/WalletContext";
+import { CONTRACT_ADDRESS } from "../utils/constants";
 
 const JoinPVP = () => {
-  const [wallet, setWallet] = useState("");
+  const { walletAddress, signer } = useContext(WalletContext);
   const [battleStatus, setBattleStatus] = useState("checking");
-  const [battleId, setBattleId] = useState(null); // ✅ Tambahan: menyimpan battleId
+  const [battleId, setBattleId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState("");
   const navigate = useNavigate();
 
-  const connectWallet = async () => {
-    try {
-      const [address] = await window.ethereum.request({ method: "eth_requestAccounts" });
-      setWallet(address);
-    } catch (err) {
-      console.error("Gagal konek wallet:", err);
-    }
-  };
+  const checkBattleStatus = async () => {
+    if (!signer || !walletAddress) return;
 
-  const checkBattleStatus = async (walletAddress) => {
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+      const currentBattleId = await contract.getPlayerBattle(walletAddress);
 
-      const battleId = await contract.getPlayerBattle(walletAddress);
-      if (battleId === 0n) {
+      if (currentBattleId === 0n) {
         setBattleStatus("idle");
         setBattleId(null);
         return;
       }
 
-      setBattleId(battleId.toString()); // ✅ Simpan battleId ke state
+      setBattleId(currentBattleId.toString());
 
-      const battle = await contract.battles(battleId);
+      const battle = await contract.battles(currentBattleId);
       const player1 = battle.player1.addr;
       const player2 = battle.player2.addr;
 
-      if (
-        player1 !== ethers.ZeroAddress &&
-        player2 !== ethers.ZeroAddress
-      ) {
+      if (player1 !== ethers.ZeroAddress && player2 !== ethers.ZeroAddress) {
         setBattleStatus("inBattle");
       } else {
         setBattleStatus("idle");
@@ -57,17 +45,16 @@ const JoinPVP = () => {
   };
 
   const joinMatchmaking = async () => {
+    if (!signer) return alert("Wallet belum terhubung");
     try {
       setLoading(true);
       setTxHash("");
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
 
       const tx = await contract.joinMatchmaking();
       await tx.wait();
       setTxHash(tx.hash);
-      await checkBattleStatus(wallet);
+      await checkBattleStatus();
     } catch (err) {
       console.error("Gagal join matchmaking:", err);
     } finally {
@@ -76,17 +63,16 @@ const JoinPVP = () => {
   };
 
   const leaveBattle = async () => {
+    if (!signer) return alert("Wallet belum terhubung");
     try {
       setLoading(true);
       setTxHash("");
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
 
       const tx = await contract.leaveBattle();
       await tx.wait();
       setTxHash(tx.hash);
-      await checkBattleStatus(wallet);
+      await checkBattleStatus();
     } catch (err) {
       console.error("Gagal keluar dari battle:", err);
     } finally {
@@ -95,23 +81,21 @@ const JoinPVP = () => {
   };
 
   useEffect(() => {
-    connectWallet();
-  }, []);
-
-  useEffect(() => {
-    if (wallet) checkBattleStatus(wallet);
-  }, [wallet]);
+    if (walletAddress && signer) {
+      checkBattleStatus();
+    }
+  }, [walletAddress, signer]);
 
   useEffect(() => {
     if (battleStatus === "inBattle" && battleId) {
-      navigate(`/arena-battle/${battleId}`); // ✅ Gunakan battleId dalam URL
+      navigate(`/arena-battle/${battleId}`);
     }
   }, [battleStatus, battleId, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white p-4">
       <h1 className="text-3xl font-bold mb-4">Join PVP Match</h1>
-      {wallet && <p className="mb-2">Connected: {wallet}</p>}
+      {walletAddress && <p className="mb-2">Connected: {walletAddress}</p>}
       <p className="mb-4">Status: {battleStatus === "checking" ? "Checking..." : battleStatus}</p>
 
       {battleStatus === "idle" && (
