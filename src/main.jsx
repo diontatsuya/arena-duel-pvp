@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import AppRoutes from "./router/AppRoutes"; // ganti App menjadi AppRoutes
+import AppRoutes from "./routes/AppRoutes"; // ganti App menjadi AppRoutes
 import { WalletProvider } from "./context/WalletContext"; // pastikan path-nya benar
 import "./index.css";
 
