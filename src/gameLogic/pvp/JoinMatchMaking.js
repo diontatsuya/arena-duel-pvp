@@ -1,9 +1,11 @@
 import { ethers } from "ethers";
-import { contractAddress, contractABI } from "../../utils/contractInfo";
+import { CONTRACT_ADDRESS } from "../../utils/constants";
+import { contractABI } from "../../utils/contractABI";
+
 
 export const joinMatchmaking = async (signer) => {
   try {
-    const contract = new ethers.Contract(contractAddress, contractABI, signer);
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
     const tx = await contract.joinMatchmaking();
     await tx.wait();
     return true;
