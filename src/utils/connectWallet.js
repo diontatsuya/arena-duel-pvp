@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 
-const SOMNIA_CHAIN_ID = "0xc488"; // 50312
+const SOMNIA_CHAIN_ID = "0xc488"; // 50312 (hex)
 const SOMNIA_PARAMS = {
   chainId: SOMNIA_CHAIN_ID,
   chainName: "Somnia Testnet",
@@ -13,6 +13,7 @@ const SOMNIA_PARAMS = {
   blockExplorerUrls: ["https://shannon-explorer.somnia.network"],
 };
 
+// Fungsi koneksi wallet
 export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
   if (typeof window.ethereum === "undefined") {
     alert("MetaMask belum terpasang!");
@@ -64,9 +65,39 @@ export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
 
   const signer = await provider.getSigner();
 
+  // Tambahkan listener opsional
+  setupWalletListeners();
+
   return {
     provider,
     signer,
     account: accounts[0],
   };
+}
+
+// Fungsi disconnect wallet
+export function disconnectWallet() {
+  if (typeof window.ethereum !== "undefined") {
+    window.ethereum.removeAllListeners("accountsChanged");
+    window.ethereum.removeAllListeners("chainChanged");
+  }
+
+  return {
+    provider: null,
+    signer: null,
+    account: null,
+  };
+}
+
+// Fungsi opsional: listener saat akun atau jaringan berubah
+function setupWalletListeners() {
+  if (typeof window.ethereum !== "undefined") {
+    window.ethereum.on("accountsChanged", () => {
+      window.location.reload(); // atau update state di context
+    });
+
+    window.ethereum.on("chainChanged", () => {
+      window.location.reload(); // atau update state di context
+    });
+  }
 }
