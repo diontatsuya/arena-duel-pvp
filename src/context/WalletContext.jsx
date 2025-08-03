@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { connectWallet, disconnectWallet } from "../utils/connectWallet";
+import { connectWallet as connectWithProvider, disconnectWallet as disconnectFromProvider } from "../utils/connectWallet";
 
 const WalletContext = createContext();
 
@@ -9,9 +9,9 @@ export const WalletProvider = ({ children }) => {
   const [provider, setProvider] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const connect = async () => {
+  const connectWallet = async () => {
     setLoading(true);
-    const result = await connectWallet();
+    const result = await connectWithProvider();
     if (result) {
       setWalletAddress(result.account);
       setSigner(result.signer);
@@ -20,17 +20,16 @@ export const WalletProvider = ({ children }) => {
     setLoading(false);
   };
 
-  const disconnect = () => {
-    disconnectWallet();
+  const disconnectWallet = () => {
+    disconnectFromProvider();
     setWalletAddress(null);
     setSigner(null);
     setProvider(null);
   };
 
-  // Opsional: auto-connect jika sebelumnya sudah terhubung
   useEffect(() => {
     if (window.ethereum && window.ethereum.selectedAddress) {
-      connect(); // Auto-reconnect jika user belum disconnect dari MetaMask
+      connectWallet();
     }
   }, []);
 
@@ -40,9 +39,9 @@ export const WalletProvider = ({ children }) => {
         walletAddress,
         signer,
         provider,
-        connect,
-        disconnect,
         loading,
+        connectWallet,
+        disconnectWallet,
       }}
     >
       {children}
