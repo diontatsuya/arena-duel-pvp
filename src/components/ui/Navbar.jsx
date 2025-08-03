@@ -1,54 +1,13 @@
-import { useState, useEffect } from "react";
+import { useContext } from "react";
 import { Link } from "react-router-dom";
-import { ethers } from "ethers";
+import { WalletContext } from "../contexts/WalletContext";
 
 const Navbar = () => {
-  const [walletAddress, setWalletAddress] = useState(null);
-  const [signature, setSignature] = useState(null);
-
-  useEffect(() => {
-    const savedAddress = localStorage.getItem("walletAddress");
-    const savedSignature = localStorage.getItem("signature");
-
-    if (savedAddress && savedSignature) {
-      setWalletAddress(savedAddress);
-      setSignature(savedSignature);
-    }
-  }, []);
-
-  const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert("MetaMask tidak terdeteksi");
-      return;
-    }
-
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-
-      let signedMessage = localStorage.getItem("signature");
-      if (!signedMessage) {
-        const message = "Login to Arena Duel";
-        signedMessage = await signer.signMessage(message);
-        localStorage.setItem("signature", signedMessage);
-      }
-
-      setWalletAddress(address);
-      setSignature(signedMessage);
-      localStorage.setItem("walletAddress", address);
-    } catch (err) {
-      console.error("Gagal koneksi wallet:", err);
-    }
-  };
-
-  const disconnectWallet = () => {
-    setWalletAddress(null);
-    setSignature(null);
-    localStorage.removeItem("walletAddress");
-    localStorage.removeItem("signature");
-  };
+  const {
+    walletAddress,
+    connectWallet,
+    disconnectWallet,
+  } = useContext(WalletContext);
 
   return (
     <nav className="bg-gray-800 p-4 flex justify-between items-center">
@@ -68,6 +27,7 @@ const Navbar = () => {
         <Link to="/arena-pve" className="text-white hover:underline">
           Arena PvE
         </Link>
+
         {walletAddress ? (
           <div className="flex items-center space-x-2">
             <span className="text-green-400">
