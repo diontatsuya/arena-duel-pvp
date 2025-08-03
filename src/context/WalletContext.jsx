@@ -31,3 +31,6 @@ export const WalletProvider = ({ children }) => {
 };
 
 export const useWallet = () => useContext(WalletContext);
+
+
+export { WalletContext };
