@@ -6,36 +6,20 @@ import { CONTRACT_ADDRESS } from "../utils/constants";
 import BattleStatus from "../components/pvp/BattleStatus";
 import BattleControls from "../components/pvp/BattleControls";
 import { getBattle } from "../gameLogic/pvp/getBattle";
+import { useWallet } from "../context/WalletContext";
 
 const ArenaBattle = () => {
   const navigate = useNavigate();
-  const [walletAddress, setWalletAddress] = useState(null);
-  const [signer, setSigner] = useState(null);
+  const { walletAddress, signer, provider, isConnected } = useWallet();
   const [battleData, setBattleData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert("Metamask tidak ditemukan. Silakan install terlebih dahulu.");
-      return null;
-    }
-
+  const fetchBattleData = async () => {
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await window.ethereum.request({ method: "eth_requestAccounts" });
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      return { wallet: address, signer, provider };
-    } catch (err) {
-      console.error("Gagal koneksi wallet:", err);
-      return null;
-    }
-  };
+      if (!walletAddress || !provider) return;
 
-  const fetchBattleData = async (wallet, provider) => {
-    try {
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
-      const battle = await getBattle(contract, wallet);
+      const battle = await getBattle(contract, walletAddress);
       setBattleData(battle);
     } catch (err) {
       console.error("Gagal memuat data battle:", err);
@@ -44,22 +28,14 @@ const ArenaBattle = () => {
     }
   };
 
-  const init = async () => {
-    const result = await connectWallet();
-    if (!result) {
-      alert("Gagal menghubungkan wallet");
-      return navigate("/");
+  useEffect(() => {
+    if (!isConnected) {
+      navigate("/arena-pvp");
+      return;
     }
 
-    const { wallet, signer, provider } = result;
-    setWalletAddress(wallet);
-    setSigner(signer);
-    await fetchBattleData(wallet, provider);
-  };
-
-  useEffect(() => {
-    init();
-  }, []);
+    fetchBattleData();
+  }, [walletAddress, provider, isConnected, navigate]);
 
   if (isLoading) return <div className="p-4">Memuat battle...</div>;
 
@@ -77,6 +53,25 @@ const ArenaBattle = () => {
     );
   }
 
+  const handleLeaveBattle = async () => {
+    try {
+      if (!signer) {
+        alert("Wallet belum terhubung");
+        return;
+      }
+
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+      const tx = await contract.leaveBattle();
+      await tx.wait();
+
+      alert("Berhasil keluar dari battle");
+      navigate("/arena-pvp");
+    } catch (err) {
+      console.error("Gagal keluar dari battle:", err);
+      alert("Gagal keluar dari battle");
+    }
+  };
+
   return (
     <div className="p-4">
       <h2 className="text-2xl font-bold mb-4">Arena Battle</h2>
@@ -87,25 +82,11 @@ const ArenaBattle = () => {
         signer={signer}
         walletAddress={walletAddress}
         battleData={battleData}
-        refreshBattleData={() => fetchBattleData(walletAddress, signer?.provider)}
+        refreshBattleData={fetchBattleData}
       />
 
       <button
-        onClick={async () => {
-          try {
-            if (!signer) return alert("Wallet belum terhubung");
-
-            const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-            const tx = await contract.leaveBattle();
-            await tx.wait();
-
-            alert("Berhasil keluar dari battle");
-            navigate("/arena-pvp");
-          } catch (err) {
-            console.error("Gagal keluar dari battle:", err);
-            alert("Gagal keluar dari battle");
-          }
-        }}
+        onClick={handleLeaveBattle}
         className="mt-4 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded"
       >
         ❌ Tinggalkan Battle
