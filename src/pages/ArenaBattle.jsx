@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useParams } from "react-router-dom";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
@@ -10,8 +9,6 @@ import { getBattle } from "../gameLogic/pvp/getBattle";
 import { useWallet } from "../context/WalletContext";
 
 const ArenaBattle = () => {
-  const { id } = useParams();
-  console.log("ID dari URL:", id);
   const navigate = useNavigate();
   const { walletAddress, signer, provider, isConnected } = useWallet();
   const [battleData, setBattleData] = useState(null);
