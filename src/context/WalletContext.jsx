@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { connectWallet, disconnectWallet } from "../utils/WalletConnect";
+import { connectWallet, disconnectWallet } from "../utils/connectWallet";
 
 const WalletContext = createContext();
 
