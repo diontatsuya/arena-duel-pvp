@@ -4,7 +4,7 @@ import { contractABI } from "../../utils/contractABI";
 
 export const leaveMatchmaking = async (signer) => {
   try {
-    const contract = new ethers.Contract(contractAddress, contractABI, signer);
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
     const tx = await contract.leaveMatchmaking();
     await tx.wait();
     return true;
