@@ -20,6 +20,8 @@ const JoinPVP = () => {
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
       const currentBattleId = await contract.getPlayerBattle(walletAddress);
 
+      console.log("currentBattleId:", currentBattleId);
+
       if (currentBattleId === 0n) {
         setBattleStatus("idle");
         setBattleId(null);
@@ -29,13 +31,19 @@ const JoinPVP = () => {
       setBattleId(currentBattleId.toString());
 
       const battle = await contract.battles(currentBattleId);
+      console.log("battle detail:", battle);
+
       const player1 = battle.player1.addr;
       const player2 = battle.player2.addr;
 
-      if (player1 !== ethers.ZeroAddress && player2 !== ethers.ZeroAddress) {
+      const isInBattle =
+        player1.toLowerCase() === walletAddress.toLowerCase() ||
+        player2.toLowerCase() === walletAddress.toLowerCase();
+
+      if (player1 !== ethers.ZeroAddress && player2 !== ethers.ZeroAddress && isInBattle) {
         setBattleStatus("inBattle");
       } else {
-        setBattleStatus("idle");
+        setBattleStatus("waiting");
       }
     } catch (err) {
       console.error("Gagal cek battle:", err);
@@ -46,13 +54,15 @@ const JoinPVP = () => {
 
   const joinMatchmaking = async () => {
     if (!signer) return alert("Wallet belum terhubung");
+
     try {
       setLoading(true);
       setTxHash("");
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
 
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
       const tx = await contract.joinMatchmaking();
       await tx.wait();
+
       setTxHash(tx.hash);
       await checkBattleStatus();
     } catch (err) {
@@ -64,13 +74,15 @@ const JoinPVP = () => {
 
   const leaveBattle = async () => {
     if (!signer) return alert("Wallet belum terhubung");
+
     try {
       setLoading(true);
       setTxHash("");
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
 
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
       const tx = await contract.leaveBattle();
       await tx.wait();
+
       setTxHash(tx.hash);
       await checkBattleStatus();
     } catch (err) {
@@ -88,15 +100,23 @@ const JoinPVP = () => {
 
   useEffect(() => {
     if (battleStatus === "inBattle" && battleId) {
+      console.log("Navigasi ke battle:", battleId);
       navigate(`/arena-battle/${battleId}`);
     }
-  }, [battleStatus, battleId, navigate]);
+  }, [battleStatus, battleId]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white p-4">
       <h1 className="text-3xl font-bold mb-4">Join PVP Match</h1>
       {walletAddress && <p className="mb-2">Connected: {walletAddress}</p>}
-      <p className="mb-4">Status: {battleStatus === "checking" ? "Checking..." : battleStatus}</p>
+      <p className="mb-4">
+        Status:{" "}
+        {battleStatus === "checking"
+          ? "Checking..."
+          : battleStatus === "waiting"
+          ? "Menunggu lawan..."
+          : battleStatus}
+      </p>
 
       {battleStatus === "idle" && (
         <button
@@ -108,13 +128,13 @@ const JoinPVP = () => {
         </button>
       )}
 
-      {battleStatus === "inBattle" && (
+      {battleStatus === "waiting" && (
         <button
-          className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg mb-4 disabled:opacity-50"
+          className="bg-yellow-500 hover:bg-yellow-600 px-6 py-2 rounded-lg mb-4 disabled:opacity-50"
           onClick={leaveBattle}
           disabled={loading}
         >
-          {loading ? "Leaving..." : "Leave Battle"}
+          {loading ? "Leaving..." : "Batalkan Match"}
         </button>
       )}
 
