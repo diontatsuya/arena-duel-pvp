@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import { Link } from "react-router-dom";
-import { WalletContext } from "../contexts/WalletContext";
+import { WalletContext } from "../context/WalletContext";
 
 const Navbar = () => {
   const {
