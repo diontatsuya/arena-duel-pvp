@@ -8,6 +8,7 @@ const CONTRACT_ADDRESS = "0x03892903e86e6db9bbcc86bdff571ca1360184b7";
 const JoinPVP = () => {
   const [wallet, setWallet] = useState("");
   const [battleStatus, setBattleStatus] = useState("checking");
+  const [battleId, setBattleId] = useState(null); // ✅ Tambahan: menyimpan battleId
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState("");
   const navigate = useNavigate();
@@ -30,8 +31,11 @@ const JoinPVP = () => {
       const battleId = await contract.getPlayerBattle(walletAddress);
       if (battleId === 0n) {
         setBattleStatus("idle");
+        setBattleId(null);
         return;
       }
+
+      setBattleId(battleId.toString()); // ✅ Simpan battleId ke state
 
       const battle = await contract.battles(battleId);
       const player1 = battle.player1.addr;
@@ -48,6 +52,7 @@ const JoinPVP = () => {
     } catch (err) {
       console.error("Gagal cek battle:", err);
       setBattleStatus("idle");
+      setBattleId(null);
     }
   };
 
@@ -97,12 +102,11 @@ const JoinPVP = () => {
     if (wallet) checkBattleStatus(wallet);
   }, [wallet]);
 
-  // ⬇️ Tambahkan ini agar auto redirect jika inBattle
   useEffect(() => {
-    if (battleStatus === "inBattle") {
-      navigate("/arena-battle");
+    if (battleStatus === "inBattle" && battleId) {
+      navigate(`/arena-battle/${battleId}`); // ✅ Gunakan battleId dalam URL
     }
-  }, [battleStatus, navigate]);
+  }, [battleStatus, battleId, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white p-4">
