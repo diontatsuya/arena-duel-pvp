@@ -16,10 +16,21 @@ const ArenaPVP = () => {
     const checkExistingBattle = async () => {
       if (!walletAddress || !signer) return;
 
-      setCheckingBattle(true);
-      const battleId = await checkBattleStatus(walletAddress, signer);
-      setExistingBattleId(battleId);
-      setCheckingBattle(false);
+      try {
+        setCheckingBattle(true);
+        const battleId = await checkBattleStatus(walletAddress, signer);
+        console.log("Battle ID ditemukan:", battleId);
+        if (battleId !== null && battleId !== undefined && battleId !== 0) {
+          setExistingBattleId(battleId.toString());
+        } else {
+          setExistingBattleId(null);
+        }
+      } catch (error) {
+        console.error("Gagal memeriksa status battle:", error);
+        setExistingBattleId(null);
+      } finally {
+        setCheckingBattle(false);
+      }
     };
 
     checkExistingBattle();
@@ -31,14 +42,17 @@ const ArenaPVP = () => {
 
   const handleContinueBattle = () => {
     if (existingBattleId) {
+      console.log("Navigating to battle ID:", existingBattleId);
       navigate(`/arena-battle/${existingBattleId}`);
+    } else {
+      console.warn("Tidak ada Battle ID yang bisa dilanjutkan");
     }
   };
 
   if (loading || checkingBattle) {
     return (
       <div className="text-white text-center mt-10">
-        <p>Loading wallet and battle status...</p>
+        <p>Loading wallet dan status battle...</p>
       </div>
     );
   }
