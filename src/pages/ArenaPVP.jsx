@@ -6,26 +6,32 @@ import { checkBattleStatus } from "../gameLogic/pvp/checkBattleStatus";
 const ArenaPVP = () => {
   const navigate = useNavigate();
   const [walletAddress, setWalletAddress] = useState(null);
-  const [inBattle, setInBattle] = useState(false);
+  const [battleId, setBattleId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const handleWalletConnect = async () => {
-    const connection = await connectWallet();
-    if (connection && connection.account) {
-      setWalletAddress(connection.account);
-    } else {
-      console.warn("Wallet tidak terhubung");
-      setWalletAddress(null);
+    try {
+      const result = await connectWallet();
+      if (result && result.account) {
+        setWalletAddress(result.account);
+      }
+    } catch (err) {
+      console.error("Gagal menghubungkan wallet:", err);
     }
   };
 
   const handleCheckBattleStatus = async (account) => {
     try {
       const result = await checkBattleStatus(account);
-      setInBattle(result);
-    } catch (error) {
-      console.error("Gagal memeriksa status battle:", error);
-      setInBattle(false);
+      // Jika result berisi battleId (angka), set ke state
+      if (result && typeof result === "number") {
+        setBattleId(result);
+      } else {
+        setBattleId(null);
+      }
+    } catch (err) {
+      console.error("Gagal cek status battle:", err);
+      setBattleId(null);
     } finally {
       setLoading(false);
     }
@@ -45,37 +51,37 @@ const ArenaPVP = () => {
   }, [walletAddress]);
 
   const handleResumeBattle = () => {
-    if (walletAddress) {
-      navigate(`/arena-battle/${walletAddress}`);
-    } else {
-      alert("Wallet belum terhubung.");
+    if (battleId !== null) {
+      navigate(`/arena-battle/${battleId}`);
     }
   };
 
-  if (loading) {
-    return <div className="text-center mt-10 text-lg">Memuat status battle...</div>;
-  }
-
   return (
-    <div className="flex flex-col items-center mt-20">
+    <div className="flex flex-col items-center mt-20 text-white">
       <h1 className="text-3xl font-bold mb-6">Arena PvP</h1>
 
-      {walletAddress ? (
+      {loading ? (
+        <p>Memuat status battle...</p>
+      ) : (
         <>
-          <p className="mb-4 text-lg">Wallet: {walletAddress}</p>
-          {inBattle ? (
-            <button
-              onClick={handleResumeBattle}
-              className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
-            >
-              Lanjutkan Battle
-            </button>
+          {walletAddress ? (
+            <>
+              <p className="mb-4">Wallet: {walletAddress}</p>
+              {battleId !== null ? (
+                <button
+                  onClick={handleResumeBattle}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                >
+                  🎮 Lanjutkan Battle #{battleId}
+                </button>
+              ) : (
+                <p className="text-yellow-400">Kamu belum dalam pertarungan.</p>
+              )}
+            </>
           ) : (
-            <p className="text-yellow-600">Kamu belum dalam pertarungan.</p>
+            <p className="text-red-400">Wallet belum terhubung.</p>
           )}
         </>
-      ) : (
-        <p className="text-red-600">Wallet belum terhubung. Silakan login dari navbar.</p>
       )}
     </div>
   );
