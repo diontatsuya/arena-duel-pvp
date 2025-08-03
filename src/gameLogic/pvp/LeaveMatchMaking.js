@@ -1,5 +1,6 @@
 import { ethers } from "ethers";
-import { contractAddress, contractABI } from "../../utils/contractInfo";
+import { CONTRACT_ADDRESS } from "../../utils/constants";
+import { contractABI } from "../../utils/contractABI";
 
 export const leaveMatchmaking = async (signer) => {
   try {
