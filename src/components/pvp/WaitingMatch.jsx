@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { checkIfMatched } from "../../gameLogic/pvpLogic";
+import { checkIfMatched } from "../../gameLogic/pvp/checkIfMatched";
 
 const WaitingMatch = ({ playerAddress }) => {
   const navigate = useNavigate();
@@ -9,32 +9,24 @@ const WaitingMatch = ({ playerAddress }) => {
     if (!playerAddress) return;
 
     const interval = setInterval(async () => {
-      try {
-        const matched = await checkIfMatched(playerAddress);
-        if (matched) {
-          clearInterval(interval);
-          navigate("/arena-battle");
-        }
-      } catch (error) {
-        console.error("Gagal mengecek status match:", error);
+      console.log("🔍 Checking match for:", playerAddress);
+
+      const matched = await checkIfMatched(playerAddress);
+      console.log("✅ Match status:", matched);
+
+      if (matched) {
+        clearInterval(interval);
+        console.log("🎯 Match found! Redirecting...");
+        navigate("/arena-battle");
       }
-    }, 3000);
+    }, 3000); // Check every 3 seconds
 
     return () => clearInterval(interval);
   }, [playerAddress, navigate]);
 
-  if (!playerAddress) {
-    return (
-      <div className="text-center py-10">
-        <p className="text-lg">Harap hubungkan wallet terlebih dahulu.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col items-center justify-center min-h-[200px]">
-      <p className="text-xl font-semibold mb-4">Menunggu lawan...</p>
-      <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-white" />
+    <div className="text-yellow-300 mt-4">
+      Menunggu pemain lain bergabung...
     </div>
   );
 };
