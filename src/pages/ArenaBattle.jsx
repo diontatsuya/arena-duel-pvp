@@ -5,7 +5,6 @@ import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
 import BattleStatus from "../components/pvp/BattleStatus";
 import BattleControls from "../components/pvp/BattleControls";
-import { connectWallet } from "../utils/connectWallet";
 import { getBattle } from "../gameLogic/pvp/getBattle";
 
 const ArenaBattle = () => {
@@ -14,6 +13,24 @@ const ArenaBattle = () => {
   const [signer, setSigner] = useState(null);
   const [battleData, setBattleData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const connectWallet = async () => {
+    if (!window.ethereum) {
+      alert("Metamask tidak ditemukan. Silakan install terlebih dahulu.");
+      return null;
+    }
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      return { wallet: address, signer, provider };
+    } catch (err) {
+      console.error("Gagal koneksi wallet:", err);
+      return null;
+    }
+  };
 
   const fetchBattleData = async (wallet, provider) => {
     try {
@@ -28,11 +45,13 @@ const ArenaBattle = () => {
   };
 
   const init = async () => {
-    const { wallet, signer, provider } = await connectWallet();
-    if (!wallet) {
+    const result = await connectWallet();
+    if (!result) {
       alert("Gagal menghubungkan wallet");
       return navigate("/");
     }
+
+    const { wallet, signer, provider } = result;
     setWalletAddress(wallet);
     setSigner(signer);
     await fetchBattleData(wallet, provider);
@@ -62,25 +81,22 @@ const ArenaBattle = () => {
     <div className="p-4">
       <h2 className="text-2xl font-bold mb-4">Arena Battle</h2>
 
-      {/* Status Pertarungan */}
       <BattleStatus battleData={battleData} walletAddress={walletAddress} />
 
-      {/* Kontrol Pertarungan */}
       <BattleControls
         signer={signer}
         walletAddress={walletAddress}
         battleData={battleData}
-        refreshBattleData={() => fetchBattleData(walletAddress, signer.provider)}
+        refreshBattleData={() => fetchBattleData(walletAddress, signer?.provider)}
       />
 
-      {/* Tombol Keluar Battle */}
       <button
         onClick={async () => {
           try {
             if (!signer) return alert("Wallet belum terhubung");
 
             const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-            const tx = await contract.leaveBattle(); // ✅ TANPA ARGUMEN SESUAI ABI
+            const tx = await contract.leaveBattle();
             await tx.wait();
 
             alert("Berhasil keluar dari battle");
