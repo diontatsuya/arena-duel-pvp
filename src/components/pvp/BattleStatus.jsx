@@ -1,5 +1,18 @@
 import React from "react";
 
+// Komponen HealthBar Reusable
+const HealthBar = ({ hp }) => {
+  const percentage = Math.max(0, Math.min(hp, 100)); // batasi 0 - 100
+  return (
+    <div className="w-full bg-gray-700 rounded h-4 mt-2 overflow-hidden">
+      <div
+        className="h-full bg-green-500 transition-all duration-500 ease-out"
+        style={{ width: `${percentage}%` }}
+      />
+    </div>
+  );
+};
+
 const BattleStatus = ({ player, opponent, turn, currentAddress }) => {
   const lowerCurrent = currentAddress?.toLowerCase();
   const playerAddress = player?.address?.toLowerCase();
@@ -21,7 +34,8 @@ const BattleStatus = ({ player, opponent, turn, currentAddress }) => {
       <div className="bg-gray-800 p-4 rounded-xl shadow-md">
         <h3 className="text-lg font-bold text-green-400">Kamu</h3>
         <p>HP: {myData?.hp ?? "-"}</p>
-        <p>Aksi Terakhir: {myData?.lastAction ?? "-"}</p>
+        <HealthBar hp={myData?.hp ?? 0} />
+        <p className="mt-2">Aksi Terakhir: {myData?.lastAction ?? "-"}</p>
         {isMyTurn && <p className="mt-2 text-sm text-yellow-400">Giliranmu!</p>}
       </div>
 
@@ -29,7 +43,8 @@ const BattleStatus = ({ player, opponent, turn, currentAddress }) => {
       <div className="bg-gray-800 p-4 rounded-xl shadow-md">
         <h3 className="text-lg font-bold text-red-400">Lawan</h3>
         <p>HP: {enemyData?.hp ?? "-"}</p>
-        <p>Aksi Terakhir: {enemyData?.lastAction ?? "-"}</p>
+        <HealthBar hp={enemyData?.hp ?? 0} />
+        <p className="mt-2">Aksi Terakhir: {enemyData?.lastAction ?? "-"}</p>
         {!isMyTurn && <p className="mt-2 text-sm text-yellow-400">Giliran lawan...</p>}
       </div>
     </div>
