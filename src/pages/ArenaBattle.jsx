@@ -7,6 +7,7 @@ import BattleStatus from "../components/pvp/BattleStatus";
 import BattleControls from "../components/pvp/BattleControls";
 import { getBattle } from "../gameLogic/pvp/getBattle";
 import { useWallet } from "../context/WalletContext";
+import { handleAction } from "../gameLogic/pvp/handleAction";
 
 const ArenaBattle = () => {
   const navigate = useNavigate();
