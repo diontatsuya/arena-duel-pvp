@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
@@ -9,21 +9,18 @@ import { getBattle } from "../gameLogic/pvp/getBattle";
 import { useWallet } from "../context/WalletContext";
 import { handleAction } from "../gameLogic/pvp/handleAction";
 
-const onAction = async (actionType) => {
-  await handleAction(actionType, signer, fetchBattleData);
-};
 const ArenaBattle = () => {
   const navigate = useNavigate();
   const { walletAddress, signer, provider, isConnected } = useWallet();
   const [battleData, setBattleData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [leaving, setLeaving] = useState(false); // untuk menghindari klik ganda
+  const [leaving, setLeaving] = useState(false);
 
-  const fetchBattleData = async () => {
+  const fetchBattleData = useCallback(async () => {
     try {
       if (!walletAddress || !provider) return;
 
-      setIsLoading(true); // penting agar loading muncul saat refresh data
+      setIsLoading(true);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
       const battle = await getBattle(contract, walletAddress);
       setBattleData(battle);
@@ -32,7 +29,7 @@ const ArenaBattle = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [walletAddress, provider]);
 
   useEffect(() => {
     if (!isConnected) {
@@ -41,7 +38,7 @@ const ArenaBattle = () => {
     }
 
     fetchBattleData();
-  }, [walletAddress, provider, isConnected, navigate]);
+  }, [walletAddress, provider, isConnected, navigate, fetchBattleData]);
 
   const handleLeaveBattle = async () => {
     try {
@@ -63,6 +60,12 @@ const ArenaBattle = () => {
     } finally {
       setLeaving(false);
     }
+  };
+
+  // Perbaikan penempatan: `signer` dan `fetchBattleData` sudah tersedia dalam komponen
+  const onAction = async (actionType) => {
+    if (!signer) return;
+    await handleAction(actionType, signer, fetchBattleData);
   };
 
   if (isLoading) return <div className="p-4">Memuat battle...</div>;
@@ -92,6 +95,7 @@ const ArenaBattle = () => {
         walletAddress={walletAddress}
         battleData={battleData}
         refreshBattleData={fetchBattleData}
+        onAction={onAction} // ⬅️ pastikan BattleControls menerima props ini
       />
 
       <button
