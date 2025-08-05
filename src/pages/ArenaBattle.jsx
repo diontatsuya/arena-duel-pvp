@@ -9,6 +9,9 @@ import { getBattle } from "../gameLogic/pvp/getBattle";
 import { useWallet } from "../context/WalletContext";
 import { handleAction } from "../gameLogic/pvp/handleAction";
 
+const onAction = async (actionType) => {
+  await handleAction(actionType, signer, fetchBattleData);
+};
 const ArenaBattle = () => {
   const navigate = useNavigate();
   const { walletAddress, signer, provider, isConnected } = useWallet();
