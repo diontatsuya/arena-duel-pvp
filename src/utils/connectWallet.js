@@ -24,40 +24,31 @@ export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
 
   const provider = new ethers.BrowserProvider(ethereum);
 
+  // Pastikan di jaringan Somnia
   let network;
   try {
     network = await provider.getNetwork();
-  } catch (err) {
-    console.error("Gagal mendapatkan jaringan:", err);
-    alert("Gagal mendeteksi jaringan wallet.");
-    return null;
-  }
-
-  // Switch / add Somnia network jika perlu
-  if (network.chainId !== parseInt(expectedChainIdHex, 16)) {
-    try {
-      await ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: expectedChainIdHex }],
-      });
-    } catch (switchError) {
-      if (switchError.code === 4902) {
-        try {
+    if (network.chainId !== parseInt(expectedChainIdHex, 16)) {
+      try {
+        await ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: expectedChainIdHex }],
+        });
+      } catch (switchError) {
+        if (switchError.code === 4902) {
           await ethereum.request({
             method: "wallet_addEthereumChain",
             params: [SOMNIA_PARAMS],
           });
-        } catch (addError) {
-          console.error("Gagal menambahkan jaringan Somnia:", addError);
-          alert("Gagal menambahkan jaringan Somnia.");
-          return null;
+        } else {
+          throw switchError;
         }
-      } else {
-        console.error("Gagal mengganti jaringan:", switchError);
-        alert("Gagal mengganti jaringan ke Somnia.");
-        return null;
       }
     }
+  } catch (err) {
+    console.error("Gagal atur jaringan:", err);
+    alert("Gagal mengatur jaringan Somnia.");
+    return null;
   }
 
   // Minta akun
@@ -65,7 +56,7 @@ export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
   try {
     accounts = await ethereum.request({ method: "eth_requestAccounts" });
   } catch (err) {
-    console.error("Gagal meminta akses akun:", err);
+    console.error("Gagal meminta akun:", err);
     alert("Gagal meminta akses akun.");
     return null;
   }
@@ -78,13 +69,13 @@ export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
   const signer = await provider.getSigner();
   const walletAddress = await signer.getAddress();
 
-  // Tanda tangan pesan untuk autentikasi (opsional)
-  let signature = null;
+  // Opsional: tanda tangan autentikasi
+  let signature;
   try {
     signature = await signer.signMessage("Sign in to Somnia");
   } catch (err) {
-    console.warn("User menolak tanda tangan:", err);
-    alert("Anda harus menandatangani untuk melanjutkan.");
+    console.warn("Tanda tangan dibatalkan:", err);
+    alert("Tanda tangan dibatalkan.");
     return null;
   }
 
@@ -103,9 +94,9 @@ export async function getNativeBalance(address) {
   try {
     const provider = new ethers.BrowserProvider(window.ethereum || window.mises || window.okxwallet);
     const balance = await provider.getBalance(address);
-    return ethers.formatEther(balance); // hasil STT dalam satuan ether
+    return ethers.formatEther(balance);
   } catch (err) {
-    console.error("Gagal mengambil saldo STT:", err);
+    console.error("Gagal ambil saldo STT:", err);
     return "0";
   }
 }
@@ -126,15 +117,10 @@ export function disconnectWallet() {
   };
 }
 
-// Listener saat akun atau jaringan berubah
+// Listener perubahan akun/jaringan
 function setupWalletListeners(ethereum) {
   if (!ethereum) return;
 
-  ethereum.on("accountsChanged", () => {
-    window.location.reload();
-  });
-
-  ethereum.on("chainChanged", () => {
-    window.location.reload();
-  });
+  ethereum.on("accountsChanged", () => window.location.reload());
+  ethereum.on("chainChanged", () => window.location.reload());
 }
