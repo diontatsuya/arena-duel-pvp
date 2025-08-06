@@ -5,9 +5,17 @@ import { WalletContext } from "../../context/WalletContext";
 const Navbar = () => {
   const {
     walletAddress,
+    signature,
     connectWallet,
     disconnectWallet,
   } = useContext(WalletContext);
+
+  const handleCopySignature = () => {
+    if (signature) {
+      navigator.clipboard.writeText(signature);
+      alert("Signature disalin ke clipboard!");
+    }
+  };
 
   return (
     <nav className="bg-gray-800 p-4 flex justify-between items-center">
@@ -29,16 +37,29 @@ const Navbar = () => {
         </Link>
 
         {walletAddress ? (
-          <div className="flex items-center space-x-2">
-            <span className="text-green-400">
-              {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
-            </span>
-            <button
-              onClick={disconnectWallet}
-              className="text-red-400 hover:underline"
-            >
-              Logout
-            </button>
+          <div className="flex flex-col items-end space-y-1">
+            <div className="flex items-center space-x-2">
+              <span className="text-green-400">
+                {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+              </span>
+              <button
+                onClick={disconnectWallet}
+                className="text-red-400 hover:underline"
+              >
+                Logout
+              </button>
+            </div>
+            {signature && (
+              <div className="text-xs text-gray-400">
+                <span className="mr-2">Signed</span>
+                <button
+                  onClick={handleCopySignature}
+                  className="text-blue-400 hover:underline"
+                >
+                  Copy Signature
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <button
