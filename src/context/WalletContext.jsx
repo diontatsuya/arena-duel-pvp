@@ -1,5 +1,8 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { connectWallet as connectWithProvider, disconnectWallet as disconnectFromProvider } from "../utils/connectWallet";
+import {
+  connectWallet as connectWithProvider,
+  disconnectWallet as disconnectFromProvider,
+} from "../utils/connectWallet";
 
 const WalletContext = createContext();
 
@@ -11,13 +14,18 @@ export const WalletProvider = ({ children }) => {
 
   const connectWallet = async () => {
     setLoading(true);
-    const result = await connectWithProvider();
-    if (result) {
-      setWalletAddress(result.account);
-      setSigner(result.signer);
-      setProvider(result.provider);
+    try {
+      const result = await connectWithProvider();
+      if (result) {
+        setWalletAddress(result.account);
+        setSigner(result.signer);
+        setProvider(result.provider);
+      }
+    } catch (err) {
+      console.error("Gagal konek wallet:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const disconnectWallet = () => {
@@ -28,7 +36,8 @@ export const WalletProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    if (window.ethereum && window.ethereum.selectedAddress) {
+    const ethereum = window.ethereum || window.mises || window.okxwallet;
+    if (ethereum && ethereum.selectedAddress) {
       connectWallet();
     }
   }, []);
