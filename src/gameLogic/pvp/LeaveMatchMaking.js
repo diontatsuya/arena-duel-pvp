@@ -2,11 +2,14 @@ import { useContext } from "react";
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESS } from "../../utils/constants";
 import { contractABI } from "../../utils/contractABI";
-import { WalletContext } from "../../context/WalletContext";
+import { useWallet } from "../../context/WalletContext";
 
 export const useLeaveMatchmaking = () => {
-  const { signer } = useContext(WalletContext);
-
+  const { signer } = useWallet();
+    if (!signer) {
+  console.error("Signer tidak tersedia");
+  return false;
+    }
   const leaveMatchmaking = async () => {
     try {
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
