@@ -4,6 +4,10 @@ import { CONTRACT_ADDRESS } from "../../utils/constants";
 
 export const getBattle = async (provider, battleId) => {
   try {
+    if (!provider || !battleId) {
+      throw new Error("Provider atau Battle ID tidak valid");
+    }
+
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
     const battle = await contract.getBattle(battleId);
 
@@ -25,7 +29,7 @@ export const getBattle = async (provider, battleId) => {
       isActive: battle.isActive,
     };
   } catch (err) {
-    console.error("Gagal mendapatkan data battle:", err);
+    console.error("❌ Gagal mendapatkan data battle:", err);
     return null;
   }
 };
