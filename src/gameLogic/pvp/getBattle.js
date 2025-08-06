@@ -21,7 +21,7 @@ export const getBattle = async (provider, battleId) => {
         lastAction: Number(battle.player2.lastAction),
         defending: battle.player2.defending,
       },
-      turn: battle.currentTurn,
+      // turn: battle.currentTurn, // ❌ tidak ada di ABI
       state: Number(battle.state),
       winner: battle.winner,
     };
