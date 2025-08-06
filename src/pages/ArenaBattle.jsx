@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom"; // ✅ tambahkan useParams
+import { useNavigate, useParams } from "react-router-dom";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
@@ -19,28 +19,27 @@ const ArenaBattle = () => {
 
   const fetchBattleData = useCallback(async () => {
     try {
-      if (!walletAddress || !provider) return;
+      if (!id || !provider) return;
 
       setIsLoading(true);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
-      const battle = await getBattle(contract, walletAddress);
+      const battle = await getBattle(contract, id); // ✅ gunakan ID dari URL
       setBattleData(battle);
     } catch (err) {
       console.error("Gagal memuat data battle:", err);
     } finally {
       setIsLoading(false);
     }
-  }, [walletAddress, provider]);
+  }, [id, provider]);
 
   useEffect(() => {
-    if (!isConnected) {
+    if (!isConnected || !id) {
       navigate("/arena-pvp");
       return;
     }
 
-    console.log("Battle ID dari URL:", id); // ✅ debug log
     fetchBattleData();
-  }, [walletAddress, provider, isConnected, id, navigate, fetchBattleData]);
+  }, [isConnected, id, fetchBattleData, navigate]);
 
   const handleLeaveBattle = async () => {
     try {
@@ -74,7 +73,7 @@ const ArenaBattle = () => {
   if (!battleData || !battleData.exists) {
     return (
       <div className="p-4">
-        <p>Kamu belum berada di dalam battle.</p>
+        <p>Battle tidak ditemukan atau kamu tidak tergabung dalam battle ini.</p>
         <button
           className="mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded"
           onClick={() => navigate("/arena-pvp")}
