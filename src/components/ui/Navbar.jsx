@@ -6,6 +6,7 @@ const Navbar = () => {
   const {
     walletAddress,
     signature,
+    sttBalance,
     connectWallet,
     disconnectWallet,
   } = useContext(WalletContext);
@@ -37,7 +38,7 @@ const Navbar = () => {
         </Link>
 
         {walletAddress ? (
-          <div className="flex flex-col items-end space-y-1">
+          <div className="flex flex-col items-end space-y-1 text-right">
             <div className="flex items-center space-x-2">
               <span className="text-green-400">
                 {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
@@ -58,6 +59,11 @@ const Navbar = () => {
                 >
                   Copy Signature
                 </button>
+              </div>
+            )}
+            {sttBalance && (
+              <div className="text-xs text-yellow-300">
+                Saldo: {Number(sttBalance).toFixed(4)} STT
               </div>
             )}
           </div>
