@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { connectWallet } from "../utils/connectWallet";
+import { useWallet } from "../context/WalletContext";
 import { checkBattleStatus } from "../gameLogic/pvp/checkBattleStatus";
 import { joinMatchmaking } from "../gameLogic/pvp/JoinMatchMaking";
 import { leaveMatchmaking } from "../gameLogic/pvp/LeaveMatchMaking";
