@@ -11,26 +11,26 @@ import { handleAction } from "../gameLogic/pvp/handleAction";
 
 const ArenaBattle = () => {
   const navigate = useNavigate();
-  const { id } = useParams(); // ✅ Ambil battle ID dari URL
-  const { walletAddress, signer, provider, isConnected } = useWallet();
+  const { id } = useParams();
+  const { walletAddress, signer, isConnected } = useWallet();
+
   const [battleData, setBattleData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [leaving, setLeaving] = useState(false);
 
   const fetchBattleData = useCallback(async () => {
-    try {
-      if (!id || !provider) return;
-      setIsLoading(true);
+    if (!id || !signer) return;
 
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
-      const battle = await getBattle(contract, id); // ✅ Gunakan ID dari URL
+    try {
+      setIsLoading(true);
+      const battle = await getBattle(signer, id);
       setBattleData(battle);
     } catch (err) {
-      console.error("Gagal memuat data battle:", err);
+      console.error("❌ Gagal memuat data battle:", err);
     } finally {
       setIsLoading(false);
     }
-  }, [id, provider]);
+  }, [id, signer]);
 
   useEffect(() => {
     if (!isConnected || !id) {
@@ -42,16 +42,12 @@ const ArenaBattle = () => {
   }, [isConnected, id, fetchBattleData, navigate]);
 
   const handleLeaveBattle = async () => {
-    if (!signer) {
-      alert("Wallet belum terhubung");
-      return;
-    }
+    if (!signer || !walletAddress) return;
 
     try {
       setLeaving(true);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
 
-      // Optional: Validasi apakah user memang sedang di dalam battle
       const activeId = await contract.activeBattleId(walletAddress);
       if (activeId.toString() !== id) {
         alert("Kamu tidak tergabung dalam battle ini.");
@@ -64,7 +60,7 @@ const ArenaBattle = () => {
       alert("Berhasil keluar dari battle.");
       navigate("/arena-pvp");
     } catch (err) {
-      console.error("Gagal keluar dari battle:", err);
+      console.error("❌ Gagal keluar dari battle:", err);
       alert("Gagal keluar dari battle.");
     } finally {
       setLeaving(false);
@@ -76,11 +72,13 @@ const ArenaBattle = () => {
     await handleAction(actionType, signer, fetchBattleData);
   };
 
-  if (isLoading) return <div className="p-4">Memuat battle...</div>;
+  if (isLoading) {
+    return <div className="p-4 text-white">Memuat battle...</div>;
+  }
 
-  if (!battleData || !battleData.exists) {
+  if (!battleData) {
     return (
-      <div className="p-4">
+      <div className="p-4 text-white">
         <p>Battle tidak ditemukan atau kamu tidak tergabung dalam battle ini.</p>
         <button
           className="mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded"
@@ -93,7 +91,7 @@ const ArenaBattle = () => {
   }
 
   return (
-    <div className="p-4">
+    <div className="p-4 text-white">
       <h2 className="text-2xl font-bold mb-4">Arena Battle</h2>
 
       <BattleStatus battleData={battleData} walletAddress={walletAddress} />
