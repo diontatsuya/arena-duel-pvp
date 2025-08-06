@@ -18,6 +18,8 @@ const Navbar = () => {
     }
   };
 
+  const shortenAddress = (addr) => addr?.slice(0, 6) + "..." + addr?.slice(-4);
+
   return (
     <nav className="bg-gray-800 p-4 flex justify-between items-center">
       <div className="text-xl font-bold text-white">
@@ -38,10 +40,10 @@ const Navbar = () => {
         </Link>
 
         {walletAddress ? (
-          <div className="flex flex-col items-end space-y-1 text-right">
+          <div className="flex flex-col items-end text-right space-y-1">
             <div className="flex items-center space-x-2">
               <span className="text-green-400">
-                {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                {shortenAddress(walletAddress)}
               </span>
               <button
                 onClick={disconnectWallet}
@@ -50,6 +52,7 @@ const Navbar = () => {
                 Logout
               </button>
             </div>
+
             {signature && (
               <div className="text-xs text-gray-400">
                 <span className="mr-2">Signed</span>
@@ -61,11 +64,10 @@ const Navbar = () => {
                 </button>
               </div>
             )}
-            {sttBalance && (
-              <div className="text-xs text-yellow-300">
-                Saldo: {Number(sttBalance).toFixed(4)} STT
-              </div>
-            )}
+
+            <div className="text-xs text-yellow-300">
+              Saldo: {Number(sttBalance || 0).toFixed(4)} STT
+            </div>
           </div>
         ) : (
           <button
