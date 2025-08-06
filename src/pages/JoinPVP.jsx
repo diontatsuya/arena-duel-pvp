@@ -7,13 +7,15 @@ import WaitingMatch from "../components/pvp/WaitingMatch";
 
 const JoinPVP = () => {
   const { walletAddress, signer, connectWallet } = useWallet();
+  const { joinMatchmaking } = useJoinMatchmaking();
+  const { leaveMatchmaking } = useLeaveMatchmaking();
   const [battleStatus, setBattleStatus] = useState("idle");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchStatus = async () => {
       if (!walletAddress || !signer) {
-        await connectWallet(); // Memastikan wallet terkoneksi
+        await connectWallet();
       }
 
       const battleId = await checkBattleStatus(walletAddress, signer);
@@ -31,7 +33,7 @@ const JoinPVP = () => {
   const joinMatch = async () => {
     setLoading(true);
     try {
-      const success = await joinMatchmaking(signer);
+      const success = await joinMatchmaking();  // ✅ tanpa parameter signer
       if (success) {
         setBattleStatus("waiting");
       }
@@ -44,7 +46,7 @@ const JoinPVP = () => {
   const leaveBattle = async () => {
     setLoading(true);
     try {
-      const success = await leaveMatchmaking(signer);
+      const success = await leaveMatchmaking();  // ✅ tanpa parameter signer
       if (success) {
         setBattleStatus("idle");
       }
