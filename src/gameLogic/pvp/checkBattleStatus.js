@@ -10,10 +10,10 @@ export async function checkBattleStatus(walletAddress, signer) {
 
   try {
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-    const battleId = await contract.getPlayerBattle(walletAddress);
+    const battleId = await contract.activeBattleId(walletAddress);
 
     if (battleId && battleId > 0n) {
-      return battleId.toString();
+      return battleId.toString(); // pastikan hasilnya string agar aman untuk URL
     } else {
       return null;
     }
