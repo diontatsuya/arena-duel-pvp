@@ -24,7 +24,7 @@ const JoinPVP = () => {
         console.log("Hasil checkBattleStatus:", battle);
 
         if (battle && battle !== "0") {
-          navigate(`/ArenaBattle/${battle}`);
+          navigate(`/arena-battle/${battle}`);
         }
       } catch (error) {
         console.error("Error saat checkBattle:", error);
@@ -45,7 +45,7 @@ const JoinPVP = () => {
       const battleId = await checkBattleStatus(walletAddress, signer);
       if (battleId && battleId !== "0") {
         console.log("Sudah ada battle aktif, masuk ke ArenaBattle...");
-        navigate(`/ArenaBattle/${battleId}`);
+        navigate(`/arena-battle/${battleId}`);
         return;
       }
 
