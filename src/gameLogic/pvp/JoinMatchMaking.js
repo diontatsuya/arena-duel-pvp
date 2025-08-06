@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESS } from "../../utils/constants";
 import { contractABI } from "../../utils/contractABI";
-import { useWallet } from "../../contexts/WalletContext"; // pastikan path-nya sesuai
+import { useWallet } from "../../context/WalletContext"; // pastikan path-nya sesuai
 
 export const useJoinMatchmaking = () => {
   const { signer } = useWallet();
