@@ -10,20 +10,19 @@ export const getBattle = async (provider, battleId) => {
     return {
       battleId: battleId.toString(),
       player1: {
-        address: battle.player1.addr,
-        hp: Number(battle.player1.hp),
-        lastAction: Number(battle.player1.lastAction),
-        defending: battle.player1.defending,
+        address: battle.player1,
+        hp: Number(battle.player1HP),
+        lastAction: Number(battle.lastActionPlayer1),
+        result: Number(battle.resultPlayer1),
       },
       player2: {
-        address: battle.player2.addr,
-        hp: Number(battle.player2.hp),
-        lastAction: Number(battle.player2.lastAction),
-        defending: battle.player2.defending,
+        address: battle.player2,
+        hp: Number(battle.player2HP),
+        lastAction: Number(battle.lastActionPlayer2),
+        result: Number(battle.resultPlayer2),
       },
-      // turn: battle.currentTurn, // ❌ tidak ada di ABI
-      state: Number(battle.state),
-      winner: battle.winner,
+      isPlayer1Turn: battle.isPlayer1Turn,
+      isActive: battle.isActive,
     };
   } catch (err) {
     console.error("Gagal mendapatkan data battle:", err);
