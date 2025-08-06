@@ -98,6 +98,18 @@ export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
   };
 }
 
+// Fungsi untuk mendapatkan saldo native token (STT)
+export async function getNativeBalance(address) {
+  try {
+    const provider = new ethers.BrowserProvider(window.ethereum || window.mises || window.okxwallet);
+    const balance = await provider.getBalance(address);
+    return ethers.formatEther(balance); // hasil STT dalam satuan ether
+  } catch (err) {
+    console.error("Gagal mengambil saldo STT:", err);
+    return "0";
+  }
+}
+
 // Fungsi disconnect wallet
 export function disconnectWallet() {
   const ethereum = window.ethereum || window.mises || window.okxwallet;
