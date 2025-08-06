@@ -11,7 +11,7 @@ import { handleAction } from "../gameLogic/pvp/handleAction";
 
 const ArenaBattle = () => {
   const navigate = useNavigate();
-  const { id } = useParams(); // ✅ ambil battle ID dari URL
+  const { id } = useParams(); // ✅ Ambil battle ID dari URL
   const { walletAddress, signer, provider, isConnected } = useWallet();
   const [battleData, setBattleData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,10 +20,10 @@ const ArenaBattle = () => {
   const fetchBattleData = useCallback(async () => {
     try {
       if (!id || !provider) return;
-
       setIsLoading(true);
+
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
-      const battle = await getBattle(contract, id); // ✅ gunakan ID dari URL
+      const battle = await getBattle(contract, id); // ✅ Gunakan ID dari URL
       setBattleData(battle);
     } catch (err) {
       console.error("Gagal memuat data battle:", err);
@@ -42,22 +42,30 @@ const ArenaBattle = () => {
   }, [isConnected, id, fetchBattleData, navigate]);
 
   const handleLeaveBattle = async () => {
+    if (!signer) {
+      alert("Wallet belum terhubung");
+      return;
+    }
+
     try {
-      if (!signer) {
-        alert("Wallet belum terhubung");
+      setLeaving(true);
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+
+      // Optional: Validasi apakah user memang sedang di dalam battle
+      const activeId = await contract.activeBattleId(walletAddress);
+      if (activeId.toString() !== id) {
+        alert("Kamu tidak tergabung dalam battle ini.");
         return;
       }
 
-      setLeaving(true);
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
       const tx = await contract.leaveBattle();
       await tx.wait();
 
-      alert("Berhasil keluar dari battle");
+      alert("Berhasil keluar dari battle.");
       navigate("/arena-pvp");
     } catch (err) {
       console.error("Gagal keluar dari battle:", err);
-      alert("Gagal keluar dari battle");
+      alert("Gagal keluar dari battle.");
     } finally {
       setLeaving(false);
     }
