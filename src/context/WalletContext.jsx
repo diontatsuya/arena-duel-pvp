@@ -10,6 +10,7 @@ export const WalletProvider = ({ children }) => {
   const [walletAddress, setWalletAddress] = useState(null);
   const [signer, setSigner] = useState(null);
   const [provider, setProvider] = useState(null);
+  const [signature, setSignature] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const connectWallet = async () => {
@@ -20,6 +21,7 @@ export const WalletProvider = ({ children }) => {
         setWalletAddress(result.account);
         setSigner(result.signer);
         setProvider(result.provider);
+        setSignature(result.signature); // simpan signature
       }
     } catch (err) {
       console.error("Gagal konek wallet:", err);
@@ -33,6 +35,7 @@ export const WalletProvider = ({ children }) => {
     setWalletAddress(null);
     setSigner(null);
     setProvider(null);
+    setSignature(null); // reset signature
   };
 
   useEffect(() => {
@@ -48,6 +51,7 @@ export const WalletProvider = ({ children }) => {
         walletAddress,
         signer,
         provider,
+        signature, // <- disediakan ke context
         loading,
         connectWallet,
         disconnectWallet,
