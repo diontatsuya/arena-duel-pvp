@@ -1,94 +1,66 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useWallet } from "../context/WalletContext";
 import { checkBattleStatus } from "../gameLogic/pvp/checkBattleStatus";
-import { useJoinMatchmaking } from "../gameLogic/pvp/JoinMatchMaking";
-import { useLeaveMatchmaking } from "../gameLogic/pvp/LeaveMatchMaking";
+import { useJoinMatchmaking } from "../gameLogic/pvp/joinMatchmaking";
+import { useLeaveMatchmaking } from "../gameLogic/pvp/leaveMatchmaking";
 import WaitingMatch from "../components/pvp/WaitingMatch";
 
 const JoinPVP = () => {
-  const { walletAddress, signer, connectWallet } = useWallet();
-  const { joinMatchmaking } = useJoinMatchmaking();
-  const { leaveMatchmaking } = useLeaveMatchmaking();
-  const [battleStatus, setBattleStatus] = useState("idle");
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { walletAddress } = useWallet();
+  const [isWaiting, setIsWaiting] = useState(false);
 
+  const joinMatchmaking = useJoinMatchmaking();
+  const leaveMatchmaking = useLeaveMatchmaking();
+
+  // Cek apakah sedang dalam battle
   useEffect(() => {
-    const fetchStatus = async () => {
-      if (!walletAddress || !signer) {
-        await connectWallet();
-      }
+    const checkBattle = async () => {
+      if (!walletAddress) return;
 
-      const battleId = await checkBattleStatus(walletAddress, signer);
-
-      if (battleId) {
-        setBattleStatus("inBattle");
-      } else {
-        setBattleStatus("idle");
+      const battle = await checkBattleStatus(walletAddress);
+      if (battle && battle.status !== "None") {
+        navigate("/arena/battle");
       }
     };
 
-    fetchStatus();
-  }, [walletAddress, signer]);
+    checkBattle();
+  }, [walletAddress, navigate]);
 
-  const joinMatch = async () => {
-    setLoading(true);
-    try {
-      const success = await joinMatchmaking();  // ✅ tanpa parameter signer
-      if (success) {
-        setBattleStatus("waiting");
-      }
-    } catch (error) {
-      console.error("Error joining matchmaking:", error);
-    }
-    setLoading(false);
+  // Mulai cari lawan
+  const handleJoin = async () => {
+    if (!walletAddress) return;
+    const success = await joinMatchmaking(walletAddress);
+    if (success) setIsWaiting(true);
   };
 
-  const leaveBattle = async () => {
-    setLoading(true);
-    try {
-      const success = await leaveMatchmaking();  // ✅ tanpa parameter signer
-      if (success) {
-        setBattleStatus("idle");
-      }
-    } catch (error) {
-      console.error("Error leaving matchmaking:", error);
-    }
-    setLoading(false);
+  // Berhenti cari lawan
+  const handleLeave = async () => {
+    if (!walletAddress) return;
+    await leaveMatchmaking(walletAddress);
+    setIsWaiting(false);
   };
+
+  if (isWaiting) {
+    return (
+      <WaitingMatch
+        playerAddress={walletAddress}
+        onCancel={handleLeave}
+      />
+    );
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white">
-      <div className="bg-gray-800 p-8 rounded-lg shadow-lg text-center w-96">
-        <h1 className="text-2xl font-bold mb-6">PvP Arena</h1>
-
-        {battleStatus === "idle" && (
-          <button
-            className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg mb-4 disabled:opacity-50"
-            onClick={joinMatch}
-            disabled={loading}
-          >
-            {loading ? "Joining..." : "Join Matchmaking"}
-          </button>
-        )}
-
-        {battleStatus === "waiting" && (
-          <>
-            <button
-              className="bg-yellow-500 hover:bg-yellow-600 px-6 py-2 rounded-lg mb-4 disabled:opacity-50"
-              onClick={leaveBattle}
-              disabled={loading}
-            >
-              {loading ? "Leaving..." : "Batalkan Match"}
-            </button>
-
-            <WaitingMatch playerAddress={walletAddress} />
-          </>
-        )}
-
-        {battleStatus === "inBattle" && (
-          <p className="text-lg text-green-400 mb-4">Anda sedang dalam battle!</p>
-        )}
-      </div>
+    <div className="flex flex-col items-center justify-center min-h-screen text-center">
+      <h1 className="text-3xl font-bold mb-4">Arena PVP</h1>
+      <p className="mb-6">Cari lawan untuk bertarung di Arena!</p>
+      <button
+        onClick={handleJoin}
+        className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full"
+      >
+        Cari Lawan
+      </button>
     </div>
   );
 };
