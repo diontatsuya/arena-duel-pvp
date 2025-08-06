@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { checkIfMatched } from "../../gameLogic/pvp/checkIfMatched";
+import { ethers } from "ethers";
+import { CONTRACT_ADDRESS } from "../../utils/constants";
+import { contractABI } from "../../utils/contractABI";
 
 const WaitingMatch = ({ playerAddress }) => {
   const navigate = useNavigate();
@@ -9,17 +11,29 @@ const WaitingMatch = ({ playerAddress }) => {
     if (!playerAddress) return;
 
     const interval = setInterval(async () => {
-      console.log("🔍 Checking match for:", playerAddress);
+      try {
+        console.log("🔍 Checking match for:", playerAddress);
 
-      const matched = await checkIfMatched(playerAddress);
-      console.log("✅ Match status:", matched);
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
+        const battle = await contract.getBattle(playerAddress);
 
-      if (matched) {
-        clearInterval(interval);
-        console.log("🎯 Match found! Redirecting...");
-        navigate("/arena-battle");
+        const matched =
+          battle &&
+          battle.player1 !== ethers.constants.AddressZero &&
+          battle.player2 !== ethers.constants.AddressZero;
+
+        console.log("✅ Match status:", matched);
+
+        if (matched) {
+          clearInterval(interval);
+          console.log("🎯 Match found! Redirecting...");
+          navigate("/arena-battle");
+        }
+      } catch (err) {
+        console.error("❌ Error checking match:", err);
       }
-    }, 3000); // Check every 3 seconds
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [playerAddress, navigate]);
