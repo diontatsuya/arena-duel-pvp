@@ -16,15 +16,16 @@ const actionMap = {
  * @param {string} actionType - "attack", "defend", atau "heal"
  * @param {ethers.Signer} signer - Signer wallet yang sudah terhubung
  * @param {Function} refreshBattleData - Fungsi untuk memperbarui data battle setelah aksi
+ * @param {Function} setLoading - (Opsional) Callback untuk mengatur state loading
+ * @param {Function} setTxHash - (Opsional) Callback untuk menampilkan hash transaksi
  */
-export const handleAction = async (actionType, signer, refreshBattleData) => {
+export const handleAction = async (actionType, signer, refreshBattleData, setLoading, setTxHash) => {
   if (!signer) {
     alert("Wallet belum terhubung");
     return;
   }
 
   const actionCode = actionMap[actionType];
-
   if (actionCode === undefined) {
     console.warn("Aksi tidak valid:", actionType);
     return;
@@ -32,18 +33,24 @@ export const handleAction = async (actionType, signer, refreshBattleData) => {
 
   try {
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-    const tx = await contract.takeAction(actionCode);
+    if (setLoading) setLoading(true);
 
-    console.log("Transaction Method Data :>>", tx.data);
-    await tx.wait();
+    const tx = await contract.takeAction(actionCode);
+    console.log("Transaction sent:", tx.hash);
+
+    if (setTxHash) setTxHash(tx.hash); // tampilkan hash jika disediakan
+
+    await tx.wait(); // tunggu konfirmasi
     console.log("Transaksi berhasil:", tx.hash);
 
-    // Refresh data setelah aksi selesai
     if (refreshBattleData) {
-      await refreshBattleData();
+      await refreshBattleData(); // refresh UI
     }
+
   } catch (err) {
     console.error("Gagal menjalankan aksi:", err);
-    alert("Gagal menjalankan aksi: " + (err?.message || err));
+    alert("Gagal menjalankan aksi: " + (err?.reason || err?.message || err));
+  } finally {
+    if (setLoading) setLoading(false);
   }
 };
