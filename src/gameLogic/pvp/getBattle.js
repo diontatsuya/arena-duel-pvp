@@ -26,7 +26,7 @@ export const getBattle = async (provider, battleId) => {
         result: Number(battle.resultPlayer2),
       },
       isPlayer1Turn: battle.isPlayer1Turn,
-      isActive: battle.isActive,
+      status: Number(battle.status), // enum BattleStatus: 0 = Waiting, 1 = Active, 2 = Completed
     };
   } catch (err) {
     console.error("❌ Gagal mendapatkan data battle:", err);
