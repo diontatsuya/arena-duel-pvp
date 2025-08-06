@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 
-const SOMNIA_CHAIN_ID = "0xc488"; // 50312 (hex)
+const SOMNIA_CHAIN_ID = "0xc488"; // 50312 hex
 const SOMNIA_PARAMS = {
   chainId: SOMNIA_CHAIN_ID,
   chainName: "Somnia Testnet",
@@ -15,24 +15,35 @@ const SOMNIA_PARAMS = {
 
 // Fungsi koneksi wallet
 export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
-  if (typeof window.ethereum === "undefined") {
-    alert("MetaMask belum terpasang!");
+  const ethereum = window.ethereum || window.mises || window.okxwallet;
+
+  if (!ethereum) {
+    alert("Wallet tidak ditemukan. Gunakan browser DApp atau MetaMask.");
     return null;
   }
 
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  const network = await provider.getNetwork();
+  const provider = new ethers.BrowserProvider(ethereum);
 
+  let network;
+  try {
+    network = await provider.getNetwork();
+  } catch (err) {
+    console.error("Gagal mendapatkan jaringan:", err);
+    alert("Gagal mendeteksi jaringan wallet.");
+    return null;
+  }
+
+  // Switch / add Somnia network jika perlu
   if (network.chainId !== parseInt(expectedChainIdHex, 16)) {
     try {
-      await window.ethereum.request({
+      await ethereum.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: expectedChainIdHex }],
       });
     } catch (switchError) {
       if (switchError.code === 4902) {
         try {
-          await window.ethereum.request({
+          await ethereum.request({
             method: "wallet_addEthereumChain",
             params: [SOMNIA_PARAMS],
           });
@@ -42,16 +53,17 @@ export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
           return null;
         }
       } else {
-        console.error("Gagal pindah jaringan:", switchError);
+        console.error("Gagal mengganti jaringan:", switchError);
         alert("Gagal mengganti jaringan ke Somnia.");
         return null;
       }
     }
   }
 
+  // Minta akun
   let accounts;
   try {
-    accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    accounts = await ethereum.request({ method: "eth_requestAccounts" });
   } catch (err) {
     console.error("Gagal meminta akses akun:", err);
     alert("Gagal meminta akses akun.");
@@ -59,14 +71,13 @@ export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
   }
 
   if (!accounts || accounts.length === 0) {
-    alert("Tidak ada akun ditemukan di MetaMask.");
+    alert("Tidak ada akun ditemukan.");
     return null;
   }
 
   const signer = await provider.getSigner();
 
-  // Tambahkan listener opsional
-  setupWalletListeners();
+  setupWalletListeners(ethereum);
 
   return {
     provider,
@@ -77,9 +88,10 @@ export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
 
 // Fungsi disconnect wallet
 export function disconnectWallet() {
-  if (typeof window.ethereum !== "undefined") {
-    window.ethereum.removeAllListeners("accountsChanged");
-    window.ethereum.removeAllListeners("chainChanged");
+  const ethereum = window.ethereum || window.mises || window.okxwallet;
+  if (ethereum) {
+    ethereum.removeAllListeners("accountsChanged");
+    ethereum.removeAllListeners("chainChanged");
   }
 
   return {
@@ -89,15 +101,15 @@ export function disconnectWallet() {
   };
 }
 
-// Fungsi opsional: listener saat akun atau jaringan berubah
-function setupWalletListeners() {
-  if (typeof window.ethereum !== "undefined") {
-    window.ethereum.on("accountsChanged", () => {
-      window.location.reload(); // atau update state di context
-    });
+// Listener saat akun atau jaringan berubah
+function setupWalletListeners(ethereum) {
+  if (!ethereum) return;
 
-    window.ethereum.on("chainChanged", () => {
-      window.location.reload(); // atau update state di context
-    });
-  }
+  ethereum.on("accountsChanged", () => {
+    window.location.reload();
+  });
+
+  ethereum.on("chainChanged", () => {
+    window.location.reload();
+  });
 }
