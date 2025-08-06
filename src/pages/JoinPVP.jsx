@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWallet } from "../context/WalletContext";
 import { checkBattleStatus } from "../gameLogic/pvp/checkBattleStatus";
+import { getBattle } from "../gameLogic/pvp/getBattle";
 import { useJoinMatchmaking } from "../gameLogic/pvp/JoinMatchMaking";
 import { useLeaveMatchmaking } from "../gameLogic/pvp/LeaveMatchMaking";
 import WaitingMatch from "../components/pvp/WaitingMatch";
@@ -14,7 +15,6 @@ const JoinPVP = () => {
   const { joinMatchmaking } = useJoinMatchmaking();
   const { leaveMatchmaking } = useLeaveMatchmaking();
 
-  // Cek apakah user sedang dalam battle
   useEffect(() => {
     if (!walletAddress || !signer) return;
 
@@ -35,12 +35,29 @@ const JoinPVP = () => {
   }, [walletAddress, signer, navigate]);
 
   const handleJoin = async () => {
-    if (!walletAddress) {
+    if (!walletAddress || !signer) {
       alert("Wallet belum terhubung.");
       return;
     }
 
     try {
+      // 1. Cek apakah sudah ada battle aktif
+      const battleId = await checkBattleStatus(walletAddress, signer);
+      if (battleId && battleId !== "0") {
+        console.log("Sudah ada battle aktif, masuk ke ArenaBattle...");
+        navigate(`/ArenaBattle/${battleId}`);
+        return;
+      }
+
+      // 2. Cek apakah sedang dalam matchmaking
+      const currentBattle = await getBattle(walletAddress, signer);
+      if (currentBattle?.isActive && currentBattle.player2 === "0x0000000000000000000000000000000000000000") {
+        console.log("Sedang dalam matchmaking, redirect ke waiting...");
+        setIsWaiting(true);
+        return;
+      }
+
+      // 3. Join matchmaking
       const success = await joinMatchmaking();
       if (success) {
         setIsWaiting(true);
@@ -49,6 +66,7 @@ const JoinPVP = () => {
       }
     } catch (error) {
       console.error("Gagal join matchmaking:", error);
+      alert("Terjadi kesalahan saat mencoba join matchmaking.");
     }
   };
 
