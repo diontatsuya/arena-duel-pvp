@@ -20,11 +20,11 @@ const JoinPVP = () => {
 
     const checkBattle = async () => {
       try {
-        const battle = await checkBattleStatus(walletAddress, signer);
-        console.log("Hasil checkBattleStatus:", battle);
+        const battleId = await checkBattleStatus(walletAddress, signer);
+        console.log("Hasil checkBattleStatus:", battleId);
 
-        if (battle && battle !== "0") {
-          navigate(`/arena-battle/${battle}`);
+        if (battleId && battleId !== "0") {
+          navigate(`/arena-battle/${battleId}`);
         }
       } catch (error) {
         console.error("Error saat checkBattle:", error);
@@ -50,8 +50,11 @@ const JoinPVP = () => {
       }
 
       // 2. Cek apakah sedang dalam matchmaking
-      const currentBattle = await getBattle(walletAddress, signer);
-      if (currentBattle?.isActive && currentBattle.player2 === "0x0000000000000000000000000000000000000000") {
+      const currentBattle = await getBattle(signer, walletAddress); // real user: signer + address
+      if (
+        currentBattle?.status === 0 && // status: Waiting
+        currentBattle?.player2?.address === "0x0000000000000000000000000000000000000000"
+      ) {
         console.log("Sedang dalam matchmaking, redirect ke waiting...");
         setIsWaiting(true);
         return;
