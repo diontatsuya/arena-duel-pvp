@@ -10,15 +10,16 @@ export async function checkBattleStatus(walletAddress, signer) {
 
   try {
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-    const battleId = await contract.activeBattleId(walletAddress);
+    const battle = await contract.getBattle(walletAddress);
 
-    if (battleId && battleId > 0n) {
-      return battleId.toString(); // pastikan hasilnya string agar aman untuk URL
+    // Periksa apakah battle valid berdasarkan isActive atau nilai id
+    if (battle.isActive && battle.id && battle.id > 0n) {
+      return battle.id.toString();
     } else {
       return null;
     }
   } catch (err) {
-    console.error("Gagal memeriksa status battle:", err);
+    console.error("Gagal memeriksa status battle (real user):", err);
     return null;
   }
 }
