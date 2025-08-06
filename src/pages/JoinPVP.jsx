@@ -6,27 +6,35 @@ import { leaveMatchmaking } from "../gameLogic/pvp/LeaveMatchMaking";
 import WaitingMatch from "../components/pvp/WaitingMatch";
 
 const JoinPVP = () => {
-  const [walletAddress, setWalletAddress] = useState(null);
+  const { walletAddress, signer, connectWallet } = useWallet();
   const [battleStatus, setBattleStatus] = useState("idle");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchStatus = async () => {
-      const address = await connectWallet();
-      setWalletAddress(address);
+      if (!walletAddress || !signer) {
+        await connectWallet(); // Memastikan wallet terkoneksi
+      }
 
-      const status = await checkBattleStatus(address);
-      setBattleStatus(status);
+      const battleId = await checkBattleStatus(walletAddress, signer);
+
+      if (battleId) {
+        setBattleStatus("inBattle");
+      } else {
+        setBattleStatus("idle");
+      }
     };
 
     fetchStatus();
-  }, []);
+  }, [walletAddress, signer]);
 
   const joinMatch = async () => {
     setLoading(true);
     try {
-      await joinMatchmaking(walletAddress);
-      setBattleStatus("waiting");
+      const success = await joinMatchmaking(signer);
+      if (success) {
+        setBattleStatus("waiting");
+      }
     } catch (error) {
       console.error("Error joining matchmaking:", error);
     }
@@ -36,8 +44,10 @@ const JoinPVP = () => {
   const leaveBattle = async () => {
     setLoading(true);
     try {
-      await leaveMatchmaking(walletAddress);
-      setBattleStatus("idle");
+      const success = await leaveMatchmaking(signer);
+      if (success) {
+        setBattleStatus("idle");
+      }
     } catch (error) {
       console.error("Error leaving matchmaking:", error);
     }
@@ -69,7 +79,6 @@ const JoinPVP = () => {
               {loading ? "Leaving..." : "Batalkan Match"}
             </button>
 
-            {/* ⬇️ Tambahkan komponen yang menangani polling match */}
             <WaitingMatch playerAddress={walletAddress} />
           </>
         )}
