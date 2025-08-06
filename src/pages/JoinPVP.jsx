@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useWallet } from "../context/WalletContext";
 import { checkBattleStatus } from "../gameLogic/pvp/checkBattleStatus";
-import { usejoinMatchmaking } from "../gameLogic/pvp/JoinMatchMaking";
-import { useleaveMatchmaking } from "../gameLogic/pvp/LeaveMatchMaking";
+import { useJoinMatchmaking } from "../gameLogic/pvp/JoinMatchMaking";
+import { useLeaveMatchmaking } from "../gameLogic/pvp/LeaveMatchMaking";
 import WaitingMatch from "../components/pvp/WaitingMatch";
 
 const JoinPVP = () => {
