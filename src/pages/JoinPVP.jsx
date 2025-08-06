@@ -8,37 +8,42 @@ import WaitingMatch from "../components/pvp/WaitingMatch";
 
 const JoinPVP = () => {
   const navigate = useNavigate();
-  const { walletAddress } = useWallet();
+  const { walletAddress, signer } = useWallet();
   const [isWaiting, setIsWaiting] = useState(false);
 
-  const joinMatchmaking = useJoinMatchmaking();
-  const leaveMatchmaking = useLeaveMatchmaking();
+  // ✅ Destructuring dengan benar
+  const { joinMatchmaking } = useJoinMatchmaking();
+  const { leaveMatchmaking } = useLeaveMatchmaking();
 
   // Cek apakah sedang dalam battle
   useEffect(() => {
     const checkBattle = async () => {
-      if (!walletAddress) return;
+      if (!walletAddress || !signer) return;
 
-      const battle = await checkBattleStatus(walletAddress);
-      if (battle && battle.status !== "None") {
-        navigate("/arena/battle");
+      const battle = await checkBattleStatus(walletAddress, signer);
+      if (battle) {
+        navigate(`/ArenaBattle/${battle}`);
       }
     };
 
     checkBattle();
-  }, [walletAddress, navigate]);
+  }, [walletAddress, signer, navigate]);
 
   // Mulai cari lawan
   const handleJoin = async () => {
-    if (!walletAddress) return;
-    const success = await joinMatchmaking(walletAddress);
+    if (!walletAddress) {
+      alert("Wallet belum terhubung.");
+      return;
+    }
+
+    const success = await joinMatchmaking();
     if (success) setIsWaiting(true);
   };
 
   // Berhenti cari lawan
   const handleLeave = async () => {
     if (!walletAddress) return;
-    await leaveMatchmaking(walletAddress);
+    await leaveMatchmaking();
     setIsWaiting(false);
   };
 
