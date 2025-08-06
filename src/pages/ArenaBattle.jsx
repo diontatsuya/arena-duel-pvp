@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom"; // ✅ tambahkan useParams
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
@@ -11,6 +11,7 @@ import { handleAction } from "../gameLogic/pvp/handleAction";
 
 const ArenaBattle = () => {
   const navigate = useNavigate();
+  const { id } = useParams(); // ✅ ambil battle ID dari URL
   const { walletAddress, signer, provider, isConnected } = useWallet();
   const [battleData, setBattleData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,8 +38,9 @@ const ArenaBattle = () => {
       return;
     }
 
+    console.log("Battle ID dari URL:", id); // ✅ debug log
     fetchBattleData();
-  }, [walletAddress, provider, isConnected, navigate, fetchBattleData]);
+  }, [walletAddress, provider, isConnected, id, navigate, fetchBattleData]);
 
   const handleLeaveBattle = async () => {
     try {
@@ -62,7 +64,6 @@ const ArenaBattle = () => {
     }
   };
 
-  // Perbaikan penempatan: `signer` dan `fetchBattleData` sudah tersedia dalam komponen
   const onAction = async (actionType) => {
     if (!signer) return;
     await handleAction(actionType, signer, fetchBattleData);
@@ -95,7 +96,7 @@ const ArenaBattle = () => {
         walletAddress={walletAddress}
         battleData={battleData}
         refreshBattleData={fetchBattleData}
-        onAction={onAction} // ⬅️ pastikan BattleControls menerima props ini
+        onAction={onAction}
       />
 
       <button
