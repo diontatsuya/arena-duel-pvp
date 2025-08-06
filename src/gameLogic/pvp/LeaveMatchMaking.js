@@ -6,11 +6,13 @@ import { useWallet } from "../../context/WalletContext";
 
 export const useLeaveMatchmaking = () => {
   const { signer } = useWallet();
+  
+  const leaveMatchmaking = async () => {
     if (!signer) {
   console.error("Signer tidak tersedia");
   return false;
     }
-  const leaveMatchmaking = async () => {
+    
     try {
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
       const tx = await contract.leaveMatchmaking();
