@@ -11,40 +11,56 @@ const JoinPVP = () => {
   const { walletAddress, signer } = useWallet();
   const [isWaiting, setIsWaiting] = useState(false);
 
-  // ✅ Destructuring dengan benar
   const { joinMatchmaking } = useJoinMatchmaking();
   const { leaveMatchmaking } = useLeaveMatchmaking();
 
-  // Cek apakah sedang dalam battle
+  // Cek apakah user sedang dalam battle
   useEffect(() => {
-    const checkBattle = async () => {
-      if (!walletAddress || !signer) return;
+    if (!walletAddress || !signer) return;
 
-      const battle = await checkBattleStatus(walletAddress, signer);
-      if (battle) {
-        navigate(`/ArenaBattle/${battle}`);
+    const checkBattle = async () => {
+      try {
+        const battle = await checkBattleStatus(walletAddress, signer);
+        console.log("Hasil checkBattleStatus:", battle);
+
+        if (battle && battle !== "0") {
+          navigate(`/ArenaBattle/${battle}`);
+        }
+      } catch (error) {
+        console.error("Error saat checkBattle:", error);
       }
     };
 
     checkBattle();
   }, [walletAddress, signer, navigate]);
 
-  // Mulai cari lawan
   const handleJoin = async () => {
     if (!walletAddress) {
       alert("Wallet belum terhubung.");
       return;
     }
 
-    const success = await joinMatchmaking();
-    if (success) setIsWaiting(true);
+    try {
+      const success = await joinMatchmaking();
+      if (success) {
+        setIsWaiting(true);
+      } else {
+        alert("Gagal masuk matchmaking.");
+      }
+    } catch (error) {
+      console.error("Gagal join matchmaking:", error);
+    }
   };
 
-  // Berhenti cari lawan
   const handleLeave = async () => {
     if (!walletAddress) return;
-    await leaveMatchmaking();
-    setIsWaiting(false);
+
+    try {
+      await leaveMatchmaking();
+      setIsWaiting(false);
+    } catch (error) {
+      console.error("Gagal keluar dari matchmaking:", error);
+    }
   };
 
   if (isWaiting) {
