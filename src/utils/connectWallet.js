@@ -76,13 +76,25 @@ export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
   }
 
   const signer = await provider.getSigner();
+  const walletAddress = await signer.getAddress();
+
+  // Tanda tangan pesan untuk autentikasi (opsional)
+  let signature = null;
+  try {
+    signature = await signer.signMessage("Sign in to Somnia");
+  } catch (err) {
+    console.warn("User menolak tanda tangan:", err);
+    alert("Anda harus menandatangani untuk melanjutkan.");
+    return null;
+  }
 
   setupWalletListeners(ethereum);
 
   return {
     provider,
     signer,
-    account: accounts[0],
+    account: walletAddress,
+    signature,
   };
 }
 
@@ -98,6 +110,7 @@ export function disconnectWallet() {
     provider: null,
     signer: null,
     account: null,
+    signature: null,
   };
 }
 
