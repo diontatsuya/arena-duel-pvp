@@ -16,7 +16,7 @@ const AppRoutes = () => {
           <Route path="/" element={<Home />} />
           <Route path="/arena-pvp" element={<ArenaPVP />} />
           <Route path="/join-pvp" element={<JoinPVP />} />
-          <Route path="/ArenaBattle/:battleId" element={<ArenaBattle />} />
+          <Route path="/arena-battle/:battleId" element={<ArenaBattle />} />
           <Route path="/arena-pve" element={<ArenaPVE />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
