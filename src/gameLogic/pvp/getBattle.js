@@ -2,13 +2,13 @@ import { ethers } from "ethers";
 import { contractABI } from "../../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../../utils/constants";
 
-export const getBattle = async (provider, battleId) => {
+export const getBattle = async (signer, battleId) => {
   try {
-    if (!provider || !battleId) {
-      throw new Error("Provider atau Battle ID tidak valid");
+    if (!signer || !battleId) {
+      throw new Error("Signer atau Battle ID tidak valid");
     }
 
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
     const battle = await contract.getBattle(battleId);
 
     return {
@@ -26,7 +26,7 @@ export const getBattle = async (provider, battleId) => {
         result: Number(battle.resultPlayer2),
       },
       isPlayer1Turn: battle.isPlayer1Turn,
-      status: Number(battle.status), // enum BattleStatus: 0 = Waiting, 1 = Active, 2 = Completed
+      status: Number(battle.status),
     };
   } catch (err) {
     console.error("❌ Gagal mendapatkan data battle:", err);
