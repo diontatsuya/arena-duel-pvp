@@ -35,9 +35,6 @@ const Navbar = () => {
         <Link to="/arena-pvp" className="text-white hover:underline">
           Arena PvP
         </Link>
-        <Link to="/arena-pve" className="text-white hover:underline">
-          Arena PvE
-        </Link>
 
         {walletAddress ? (
           <div className="flex flex-col items-end text-right space-y-1">
