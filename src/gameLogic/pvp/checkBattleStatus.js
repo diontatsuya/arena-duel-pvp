@@ -10,16 +10,25 @@ export async function checkBattleStatus(walletAddress, signer) {
 
   try {
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+    
+    // Cek sebagai player1 (langsung dari mapping)
     const battle = await contract.getBattle(walletAddress);
-
-    // Periksa apakah battle valid berdasarkan isActive atau nilai id
     if (battle.isActive && battle.id && battle.id > 0n) {
       return battle.id.toString();
-    } else {
-      return null;
     }
+
+    // Jika belum ditemukan, cek apakah wallet ini adalah player2
+    const totalBattles = await contract.totalBattles();
+    for (let i = 1; i <= totalBattles; i++) {
+      const b = await contract.battles(i);
+      if (b.isActive && b.player2.toLowerCase() === walletAddress.toLowerCase()) {
+        return b.id.toString();
+      }
+    }
+
+    return null;
   } catch (err) {
-    console.error("Gagal memeriksa status battle (real user):", err);
+    console.error("Gagal memeriksa status battle:", err);
     return null;
   }
 }
