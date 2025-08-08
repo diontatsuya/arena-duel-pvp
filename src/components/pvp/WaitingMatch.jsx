@@ -15,8 +15,10 @@ const WaitingMatch = ({ playerAddress }) => {
         console.log("🔍 Checking match for:", playerAddress);
 
         const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
-        const battle = await contract.getBattle(playerAddress);
+        const signer = provider.getSigner();
+
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+        const battle = await contract.getMyBattle();
 
         const matched =
           battle &&
