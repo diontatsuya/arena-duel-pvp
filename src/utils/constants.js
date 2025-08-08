@@ -1,2 +1,2 @@
-export const CONTRACT_ADDRESS = "0xf6ad8798291780164d3f72da2e5d60b685d13fa9";
+export const CONTRACT_ADDRESS = "0xdf5604348b2ba04dda19f9dfc6f9e9376b248538";
 export const SOMNIA_CHAIN_ID = "0xc488"; // 50312 (hex)
