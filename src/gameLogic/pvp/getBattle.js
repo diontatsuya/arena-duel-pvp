@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
-import { contractAddress, contractABI } from "../../contracts/contract";
-
+import { contractABI } from "../../utils/contractABI";
+import { contractAddress } from "../../utils/constant";
 export const getBattle = async (signer, walletAddress) => {
   try {
     const contract = new ethers.Contract(contractAddress, contractABI, signer);
