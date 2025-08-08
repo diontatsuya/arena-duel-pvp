@@ -30,7 +30,7 @@ const JoinPVP = () => {
           return;
         }
 
-        const currentBattle = await getBattle(signer, walletAddress);
+        const currentBattle = await getBattle(signer);
         const isMatchmaking =
           currentBattle?.status === 0 &&
           currentBattle?.player2?.address === "0x0000000000000000000000000000000000000000";
