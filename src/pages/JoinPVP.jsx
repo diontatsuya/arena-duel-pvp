@@ -6,6 +6,7 @@ import { getBattle } from "../gameLogic/pvp/getBattle";
 import { useJoinMatchmaking } from "../gameLogic/pvp/JoinMatchMaking";
 import { useLeaveMatchmaking } from "../gameLogic/pvp/LeaveMatchMaking";
 import WaitingMatch from "../components/pvp/WaitingMatch";
+import { checkIfMatched } from "../gameLogic/pvp/checkIfMatched";
 
 const JoinPVP = () => {
   const navigate = useNavigate();
@@ -32,8 +33,7 @@ const JoinPVP = () => {
         const currentBattle = await getBattle(signer, walletAddress);
         const isMatchmaking =
           currentBattle?.status === 0 &&
-          currentBattle?.player2?.address ===
-            "0x0000000000000000000000000000000000000000";
+          currentBattle?.player2?.address === "0x0000000000000000000000000000000000000000";
 
         if (isMatchmaking) {
           console.log("Sedang dalam matchmaking...");
@@ -46,6 +46,25 @@ const JoinPVP = () => {
 
     checkStatus();
   }, [walletAddress, signer]);
+
+  // Polling saat sedang menunggu
+  useEffect(() => {
+    let interval;
+    if (isWaiting) {
+      interval = setInterval(async () => {
+        const matched = await checkIfMatched(walletAddress);
+        if (matched) {
+          const battleId = await checkBattleStatus(walletAddress, signer);
+          if (battleId) {
+            navigate(`/arena-battle/${battleId}`);
+            clearInterval(interval);
+          }
+        }
+      }, 3000); // Polling setiap 3 detik
+
+      return () => clearInterval(interval);
+    }
+  }, [isWaiting, walletAddress, signer, navigate]);
 
   const handleJoin = async () => {
     if (!walletAddress || !signer) {
