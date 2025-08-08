@@ -3,8 +3,7 @@ import Navbar from "../components/ui/Navbar";
 import Home from "../pages/Home";
 import ArenaPVP from "../pages/ArenaPVP";
 import JoinPVP from "../pages/JoinPVP";
-import ArenaBattle from "../pages/ArenaBattle"; // ✅ tambahkan ini
-import ArenaPVE from "../pages/ArenaPVE";
+import ArenaBattle from "../pages/ArenaBattle";
 import NotFound from "../pages/NotFound";
 
 const AppRoutes = () => {
@@ -17,7 +16,6 @@ const AppRoutes = () => {
           <Route path="/arena-pvp" element={<ArenaPVP />} />
           <Route path="/join-pvp" element={<JoinPVP />} />
           <Route path="/arena-battle/:battleId" element={<ArenaBattle />} />
-          <Route path="/arena-pve" element={<ArenaPVE />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
