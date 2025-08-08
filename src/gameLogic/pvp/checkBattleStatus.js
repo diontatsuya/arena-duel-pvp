@@ -2,6 +2,10 @@ import { ethers } from "ethers";
 import { CONTRACT_ADDRESS } from "../../utils/constants";
 import { contractABI } from "../../utils/contractABI";
 
+/**
+ * Cek status battle aktif (baik PvP maupun PvE/AI)
+ * @returns battleId (string) jika ada, null jika tidak sedang dalam battle
+ */
 export async function checkBattleStatus(walletAddress, signer) {
   if (!walletAddress || !signer) {
     console.warn("walletAddress atau signer tidak tersedia");
@@ -10,23 +14,19 @@ export async function checkBattleStatus(walletAddress, signer) {
 
   try {
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-    
-    // Cek sebagai player1 (langsung dari mapping)
+
     const battle = await contract.getBattle(walletAddress);
-    if (battle.isActive && battle.id && battle.id > 0n) {
-      return battle.id.toString();
-    }
 
-    // Jika belum ditemukan, cek apakah wallet ini adalah player2
-    const totalBattles = await contract.totalBattles();
-    for (let i = 1; i <= totalBattles; i++) {
-      const b = await contract.battles(i);
-      if (b.isActive && b.player2.toLowerCase() === walletAddress.toLowerCase()) {
-        return b.id.toString();
-      }
-    }
+    // Di smart contract, battle.id adalah uint256 dan isActive adalah bool
+    const battleId = battle.id?.toString?.() || "0";
+    const isActive = battle.isActive;
 
-    return null;
+    // Battle aktif jika: id > 0 dan isActive true
+    if (isActive && battleId !== "0") {
+      return battleId;
+    } else {
+      return null;
+    }
   } catch (err) {
     console.error("Gagal memeriksa status battle:", err);
     return null;
