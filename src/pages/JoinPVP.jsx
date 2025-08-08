@@ -42,7 +42,6 @@ const JoinPVP = () => {
     }
 
     try {
-      // 1. Cek apakah sudah ada battle aktif
       const battleId = await checkBattleStatus(walletAddress, signer);
       if (battleId && battleId !== "0") {
         console.log("Sudah ada battle aktif, masuk ke ArenaBattle...");
@@ -50,7 +49,6 @@ const JoinPVP = () => {
         return;
       }
 
-      // 2. Cek apakah sedang dalam matchmaking
       const currentBattle = await getBattle(signer, walletAddress);
       if (
         currentBattle?.status === 0 &&
@@ -61,7 +59,6 @@ const JoinPVP = () => {
         return;
       }
 
-      // 3. Join matchmaking
       const success = await joinMatchmaking();
       if (success) {
         setIsWaiting(true);
@@ -78,8 +75,14 @@ const JoinPVP = () => {
     if (!walletAddress) return;
 
     try {
-      await leaveMatchmaking();
-      setIsWaiting(false);
+      const success = await leaveMatchmaking();
+      if (success) {
+        alert("Berhasil keluar dari matchmaking / battle.");
+        setIsWaiting(false);
+        setBattleId("0");
+      } else {
+        alert("Gagal keluar dari matchmaking.");
+      }
     } catch (error) {
       console.error("Gagal keluar dari matchmaking:", error);
     }
@@ -114,10 +117,19 @@ const JoinPVP = () => {
 
       <button
         onClick={handleJoin}
-        className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full"
+        className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full mb-2"
       >
         Cari Lawan
       </button>
+
+      {(battleId !== "0" || isWaiting) && (
+        <button
+          onClick={handleLeave}
+          className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-full"
+        >
+          Tinggalkan Pertandingan
+        </button>
+      )}
     </div>
   );
 };
