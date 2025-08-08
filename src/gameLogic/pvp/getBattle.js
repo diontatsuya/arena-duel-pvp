@@ -1,47 +1,27 @@
 import { ethers } from "ethers";
-import { contractABI } from "../../utils/contractABI";
-import { CONTRACT_ADDRESS } from "../../utils/constants";
+import { contractAddress, contractABI } from "../../contracts/contract";
 
-/**
- * Mengambil data battle berdasarkan ID
- * @param {ethers.Signer} signer - signer wallet yang aktif
- * @param {number|string} battleId - ID battle
- * @returns {Object|null} data battle atau null jika gagal
- */
-export const getBattle = async (signer, battleId) => {
+export const getBattle = async (signer, walletAddress) => {
   try {
-    if (!signer || battleId === undefined || battleId === null) {
-      throw new Error("❌ Signer atau Battle ID tidak valid");
-    }
+    const contract = new ethers.Contract(contractAddress, contractABI, signer);
 
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-
-    // Panggil data battle dari kontrak
-    const battle = await contract.getBattle(battleId);
-
-    if (!battle || !battle.player1 || !battle.player2) {
-      throw new Error("❌ Data battle tidak ditemukan atau tidak valid");
-    }
+    const battle = await contract.getMyBattle(); // Ganti ini, bukan `players()` lagi
 
     return {
-      battleId: battleId.toString(),
-      player1: {
-        address: battle.player1,
-        hp: Number(battle.player1HP ?? 0),
-        lastAction: Number(battle.lastActionPlayer1 ?? 0),
-        result: Number(battle.resultPlayer1 ?? 0),
-      },
-      player2: {
-        address: battle.player2,
-        hp: Number(battle.player2HP ?? 0),
-        lastAction: Number(battle.lastActionPlayer2 ?? 0),
-        result: Number(battle.resultPlayer2 ?? 0),
-      },
-      isPlayer1Turn: Boolean(battle.isPlayer1Turn),
-      status: Number(battle.status ?? 0),
+      player1: battle.player1,
+      player2: battle.player2,
+      player1HP: battle.player1HP,
+      player2HP: battle.player2HP,
+      lastActionPlayer1: battle.lastActionPlayer1,
+      lastActionPlayer2: battle.lastActionPlayer2,
+      isPlayer1Turn: battle.isPlayer1Turn,
+      isActive: battle.isActive,
+      resultPlayer1: battle.resultPlayer1,
+      resultPlayer2: battle.resultPlayer2,
+      status: battle.isActive ? 0 : 1 // kamu bisa ubah logika status sesuai kebutuhan
     };
-  } catch (err) {
-    console.error("❌ Gagal mendapatkan data battle:", err.message || err);
+  } catch (error) {
+    console.error("Gagal fetch data pemain:", error);
     return null;
   }
 };
