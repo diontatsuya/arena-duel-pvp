@@ -103,21 +103,36 @@ const JoinPVP = () => {
   };
 
   const handleLeave = async () => {
-    if (!walletAddress) return;
+  if (!walletAddress || !signer) return;
 
-    try {
-      const success = await leaveMatchmaking();
-      if (success) {
-        alert("Berhasil keluar dari matchmaking / battle.");
-        setIsWaiting(false);
-        setBattleId("0");
-      } else {
-        alert("Gagal keluar dari matchmaking.");
-      }
-    } catch (error) {
-      console.error("Gagal keluar dari matchmaking:", error);
+  try {
+    // Cek status battle
+    const battleId = await checkBattleStatus(walletAddress, signer);
+    const currentBattle = await getBattle(signer, walletAddress);
+
+    const isCurrentlyMatchmaking =
+      currentBattle?.status === 0 &&
+      currentBattle?.player2?.address === "0x0000000000000000000000000000000000000000";
+
+    if (!isCurrentlyMatchmaking) {
+      alert("Kamu tidak sedang dalam matchmaking.");
+      return;
     }
-  };
+
+    // Jika memang sedang matchmaking, lanjut leave
+    const success = await leaveMatchmaking();
+    if (success) {
+      alert("Berhasil keluar dari matchmaking.");
+      setIsWaiting(false);
+      setBattleId("0");
+    } else {
+      alert("Gagal keluar dari matchmaking.");
+    }
+  } catch (error) {
+    console.error("Gagal keluar dari matchmaking:", error);
+    alert("Terjadi kesalahan saat mencoba keluar dari matchmaking.");
+  }
+};
 
   const handleContinueBattle = () => {
     navigate(`/arena-battle/${battleId}`);
