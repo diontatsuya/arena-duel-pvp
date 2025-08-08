@@ -1,11 +1,11 @@
 import { ethers } from "ethers";
 import { contractABI } from "../../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../../utils/constants";
-export const getBattle = async (signer, walletAddress) => {
-  try {
-    const contract = new ethers.Contract(contractAddress, contractABI, signer);
 
-    const battle = await contract.getMyBattle(); // Ganti ini, bukan `players()` lagi
+export async function getBattle(signer) {
+  try {
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+    const battle = await contract.getMyBattle();
 
     return {
       player1: battle.player1,
