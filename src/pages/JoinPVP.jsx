@@ -19,20 +19,32 @@ const JoinPVP = () => {
   useEffect(() => {
     if (!walletAddress || !signer) return;
 
-    const checkBattle = async () => {
+    const checkStatus = async () => {
       try {
         const battleId = await checkBattleStatus(walletAddress, signer);
         console.log("Hasil checkBattleStatus:", battleId);
 
         if (battleId && battleId !== "0") {
-          setBattleId(battleId); // simpan battleId di state
+          setBattleId(battleId);
+          return;
+        }
+
+        const currentBattle = await getBattle(signer, walletAddress);
+        const isMatchmaking =
+          currentBattle?.status === 0 &&
+          currentBattle?.player2?.address ===
+            "0x0000000000000000000000000000000000000000";
+
+        if (isMatchmaking) {
+          console.log("Sedang dalam matchmaking...");
+          setIsWaiting(true);
         }
       } catch (error) {
-        console.error("Error saat checkBattle:", error);
+        console.error("Gagal cek status matchmaking/battle:", error);
       }
     };
 
-    checkBattle();
+    checkStatus();
   }, [walletAddress, signer]);
 
   const handleJoin = async () => {
