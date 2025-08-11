@@ -24,9 +24,14 @@ const ArenaBattle = () => {
     try {
       setIsLoading(true);
       const battle = await getBattle(signer, id);
-      setBattleData(battle);
+      if (!battle) {
+        setBattleData(null);
+      } else {
+        setBattleData(battle);
+      }
     } catch (err) {
       console.error("❌ Gagal memuat data battle:", err);
+      setBattleData(null);
     } finally {
       setIsLoading(false);
     }
@@ -37,7 +42,6 @@ const ArenaBattle = () => {
       navigate("/arena-pvp");
       return;
     }
-
     fetchBattleData();
   }, [isConnected, id, fetchBattleData, navigate]);
 
@@ -49,8 +53,9 @@ const ArenaBattle = () => {
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
 
       const activeId = await contract.activeBattleId(walletAddress);
-      if (activeId.toString() !== id) {
+      if (activeId.toString() !== id.toString()) {
         alert("Kamu tidak tergabung dalam battle ini.");
+        setLeaving(false);
         return;
       }
 
@@ -58,11 +63,11 @@ const ArenaBattle = () => {
       await tx.wait();
 
       alert("Berhasil keluar dari battle.");
+      setLeaving(false);
       navigate("/arena-pvp");
     } catch (err) {
       console.error("❌ Gagal keluar dari battle:", err);
       alert("Gagal keluar dari battle.");
-    } finally {
       setLeaving(false);
     }
   };
