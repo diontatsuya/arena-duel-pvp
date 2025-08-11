@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWallet } from "../context/WalletContext";
+import { ethers } from "ethers";
 import { checkBattleStatus } from "../gameLogic/pvp/checkBattleStatus";
 import { getBattle } from "../gameLogic/pvp/getBattle";
 import { useJoinMatchmaking } from "../gameLogic/pvp/JoinMatchMaking";
@@ -16,6 +17,7 @@ const JoinPVP = () => {
 
   const { joinMatchmaking } = useJoinMatchmaking();
   const { leaveMatchmaking } = useLeaveMatchmaking();
+  const zeroAddr = ethers.constants.AddressZero.toLowerCase();
 
   useEffect(() => {
     if (!walletAddress || !signer) return;
@@ -33,7 +35,7 @@ const JoinPVP = () => {
         const currentBattle = await getBattle(signer);
         const isMatchmaking =
           currentBattle?.status === 0 &&
-          currentBattle?.player2?.address === "0x0000000000000000000000000000000000000000";
+          currentBattle?.player2 === zeroAddr;
 
         if (isMatchmaking) {
           console.log("Sedang dalam matchmaking...");
@@ -60,7 +62,7 @@ const JoinPVP = () => {
             clearInterval(interval);
           }
         }
-      }, 3000); // Polling setiap 3 detik
+      }, 3000);
 
       return () => clearInterval(interval);
     }
@@ -81,10 +83,7 @@ const JoinPVP = () => {
       }
 
       const currentBattle = await getBattle(signer);
-      if (
-        currentBattle?.status === 0 &&
-        currentBattle?.player2?.address === "0x0000000000000000000000000000000000000000"
-      ) {
+      if (currentBattle?.status === 0 && currentBattle?.player2 === zeroAddr) {
         console.log("Sedang dalam matchmaking, redirect ke waiting...");
         setIsWaiting(true);
         return;
@@ -103,36 +102,32 @@ const JoinPVP = () => {
   };
 
   const handleLeave = async () => {
-  if (!walletAddress || !signer) return;
+    if (!walletAddress || !signer) return;
 
-  try {
-    // Cek status battle
-    const battleId = await checkBattleStatus(walletAddress, signer);
-    const currentBattle = await getBattle(signer);
+    try {
+      const currentBattle = await getBattle(signer);
 
-    const isCurrentlyMatchmaking =
-      currentBattle?.status === 0 &&
-      currentBattle?.player2?.address === "0x0000000000000000000000000000000000000000";
+      const isCurrentlyMatchmaking =
+        currentBattle?.status === 0 && currentBattle?.player2 === zeroAddr;
 
-    if (!isCurrentlyMatchmaking) {
-      alert("Kamu tidak sedang dalam matchmaking.");
-      return;
+      if (!isCurrentlyMatchmaking) {
+        alert("Kamu tidak sedang dalam matchmaking.");
+        return;
+      }
+
+      const success = await leaveMatchmaking();
+      if (success) {
+        alert("Berhasil keluar dari matchmaking.");
+        setIsWaiting(false);
+        setBattleId("0");
+      } else {
+        alert("Gagal keluar dari matchmaking.");
+      }
+    } catch (error) {
+      console.error("Gagal keluar dari matchmaking:", error);
+      alert("Terjadi kesalahan saat mencoba keluar dari matchmaking.");
     }
-
-    // Jika memang sedang matchmaking, lanjut leave
-    const success = await leaveMatchmaking();
-    if (success) {
-      alert("Berhasil keluar dari matchmaking.");
-      setIsWaiting(false);
-      setBattleId("0");
-    } else {
-      alert("Gagal keluar dari matchmaking.");
-    }
-  } catch (error) {
-    console.error("Gagal keluar dari matchmaking:", error);
-    alert("Terjadi kesalahan saat mencoba keluar dari matchmaking.");
-  }
-};
+  };
 
   const handleContinueBattle = () => {
     navigate(`/arena-battle/${battleId}`);
