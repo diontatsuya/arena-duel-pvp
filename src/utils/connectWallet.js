@@ -22,7 +22,7 @@ export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
     return null;
   }
 
-  const provider = new ethers.BrowserProvider(ethereum);
+  const provider = new ethers.providers.Web3Provider(ethereum);
 
   // Pastikan di jaringan Somnia
   let network;
@@ -66,7 +66,7 @@ export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
     return null;
   }
 
-  const signer = await provider.getSigner();
+  const signer = provider.getSigner();
   const walletAddress = await signer.getAddress();
 
   // Opsional: tanda tangan autentikasi
@@ -92,9 +92,9 @@ export async function connectWallet(expectedChainIdHex = SOMNIA_CHAIN_ID) {
 // Fungsi untuk mendapatkan saldo native token (STT)
 export async function getNativeBalance(address) {
   try {
-    const provider = new ethers.BrowserProvider(window.ethereum || window.mises || window.okxwallet);
+    const provider = new ethers.providers.Web3Provider(window.ethereum || window.mises || window.okxwallet);
     const balance = await provider.getBalance(address);
-    return ethers.formatEther(balance);
+    return ethers.utils.formatEther(balance);
   } catch (err) {
     console.error("Gagal ambil saldo STT:", err);
     return "0";
