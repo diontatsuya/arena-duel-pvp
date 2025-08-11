@@ -15,7 +15,8 @@ const AppRoutes = () => {
           <Route path="/" element={<Home />} />
           <Route path="/arena-pvp" element={<ArenaPVP />} />
           <Route path="/join-pvp" element={<JoinPVP />} />
-          <Route path="/arena-battle/:battleId" element={<ArenaBattle />} />
+          {/* Hapus param battleId, cukup panggil ArenaBattle */}
+          <Route path="/arena-battle" element={<ArenaBattle />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
