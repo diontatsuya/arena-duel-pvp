@@ -1,90 +1,89 @@
-import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
 import { contractABI } from "../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../utils/constants";
 import BattleStatus from "../components/pvp/BattleStatus";
 import BattleControls from "../components/pvp/BattleControls";
-import { getBattle } from "../gameLogic/pvp/getBattle";
 import { useWallet } from "../context/WalletContext";
 import { handleAction } from "../gameLogic/pvp/handleAction";
 
 const ArenaBattle = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
   const { walletAddress, signer, isConnected } = useWallet();
 
   const [battleData, setBattleData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [leaving, setLeaving] = useState(false);
 
-  const fetchBattleData = useCallback(async () => {
-    if (!id || !signer) return;
-
-    try {
-      setIsLoading(true);
-      const battle = await getBattle(signer, id);
-      if (!battle) {
-        setBattleData(null);
-      } else {
-        setBattleData(battle);
-      }
-    } catch (err) {
-      console.error("❌ Gagal memuat data battle:", err);
-      setBattleData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [id, signer]);
-
   useEffect(() => {
-    if (!isConnected || !id) {
+    const fetchMyBattle = async () => {
+      if (!signer || !walletAddress) {
+        navigate("/arena-pvp");
+        return;
+      }
+      try {
+        setIsLoading(true);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+        const battle = await contract.getMyBattle(); // panggil fungsi getMyBattle
+        if (battle && battle.isActive) {
+          setBattleData(battle);
+        } else {
+          setBattleData(null);
+          navigate("/arena-pvp"); // redirect kalau tidak ada battle aktif
+        }
+      } catch (error) {
+        console.error("Gagal memuat battle aktif:", error);
+        setBattleData(null);
+        navigate("/arena-pvp");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isConnected) {
+      fetchMyBattle();
+    } else {
       navigate("/arena-pvp");
-      return;
     }
-    fetchBattleData();
-  }, [isConnected, id, fetchBattleData, navigate]);
+  }, [signer, walletAddress, isConnected, navigate]);
 
   const handleLeaveBattle = async () => {
-    if (!signer || !walletAddress) return;
+    if (!signer) return;
 
     try {
       setLeaving(true);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-
-      const activeId = await contract.activeBattleId(walletAddress);
-      if (activeId.toString() !== id.toString()) {
-        alert("Kamu tidak tergabung dalam battle ini.");
-        setLeaving(false);
-        return;
-      }
-
       const tx = await contract.leaveBattle();
       await tx.wait();
-
       alert("Berhasil keluar dari battle.");
-      setLeaving(false);
       navigate("/arena-pvp");
     } catch (err) {
-      console.error("❌ Gagal keluar dari battle:", err);
+      console.error("Gagal keluar dari battle:", err);
       alert("Gagal keluar dari battle.");
+    } finally {
       setLeaving(false);
     }
   };
 
   const onAction = async (actionType) => {
     if (!signer) return;
-    await handleAction(actionType, signer, fetchBattleData);
+    await handleAction(actionType, signer, () => {
+      // refresh battle data setelah action
+      if (signer) {
+        contract.getMyBattle().then(setBattleData);
+      }
+    });
   };
 
   if (isLoading) {
-    return <div className="p-4 text-white">Memuat battle...</div>;
+    return <div className="p-4 text-white">Memuat battle aktif...</div>;
   }
 
   if (!battleData) {
     return (
       <div className="p-4 text-white">
-        <p>Battle tidak ditemukan atau kamu tidak tergabung dalam battle ini.</p>
+        <p>Belum ada battle aktif.</p>
         <button
           className="mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded"
           onClick={() => navigate("/arena-pvp")}
@@ -105,7 +104,12 @@ const ArenaBattle = () => {
         signer={signer}
         walletAddress={walletAddress}
         battleData={battleData}
-        refreshBattleData={fetchBattleData}
+        refreshBattleData={() => {
+          if (signer) {
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+            contract.getMyBattle().then(setBattleData);
+          }
+        }}
         onAction={onAction}
       />
 
