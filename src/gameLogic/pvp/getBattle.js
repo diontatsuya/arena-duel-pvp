@@ -2,10 +2,10 @@ import { ethers } from "ethers";
 import { contractABI } from "../../utils/contractABI";
 import { CONTRACT_ADDRESS } from "../../utils/constants";
 
-export async function getBattle(signer) {
+export async function getBattle(signer, battleId) {
   try {
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-    const battle = await contract.getMyBattle();
+    const battle = await contract.getBattle(battleId);
 
     const zeroAddr = ethers.constants.AddressZero.toLowerCase();
 
@@ -27,7 +27,7 @@ export async function getBattle(signer) {
           : 1,
     };
   } catch (error) {
-    console.error("Gagal fetch data pemain:", error);
+    console.error("Gagal fetch data battle:", error);
     return null;
   }
 }
