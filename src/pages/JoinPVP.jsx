@@ -6,6 +6,9 @@ import { checkBattleStatus } from "../gameLogic/pvp/checkBattleStatus";
 import { getBattle } from "../gameLogic/pvp/getBattle";
 import { useJoinMatchmaking } from "../gameLogic/pvp/JoinMatchMaking";
 import { useLeaveMatchmaking } from "../gameLogic/pvp/LeaveMatchMaking";
+import { CONTRACT_ADDRESS } from "../utils/constants";
+import { contractABI } from "../utils/contractABI";
+import WaitingMatch from "../components/pvp/WaitingMatch"; // pastikan ada komponen ini
 
 const JoinPVP = () => {
   const navigate = useNavigate();
@@ -52,7 +55,7 @@ const JoinPVP = () => {
         const matched = await checkBattleStatus(walletAddress, signer);
         if (matched) {
           setBattleId(matched);
-          navigate(`/arena-battle/${matched}`);
+          navigate(`/arena-battle`); // Navigasi tanpa battleId di URL
           clearInterval(interval);
         }
       }, 3000);
@@ -70,7 +73,7 @@ const JoinPVP = () => {
     try {
       const battleId = await checkBattleStatus(walletAddress, signer);
       if (battleId && battleId !== "0") {
-        navigate(`/arena-battle/${battleId}`);
+        navigate(`/arena-battle`); // Navigasi tanpa battleId di URL
         return;
       }
 
@@ -149,7 +152,7 @@ const JoinPVP = () => {
 
   const handleContinueBattle = () => {
     if (battleId && battleId !== "0") {
-      navigate(`/arena-battle/${battleId}`);
+      navigate(`/arena-battle`); // Navigasi tanpa battleId di URL
     }
   };
 
