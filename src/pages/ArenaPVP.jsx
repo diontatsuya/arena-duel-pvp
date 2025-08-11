@@ -6,32 +6,32 @@ import { checkBattleStatus } from "../gameLogic/pvp/checkBattleStatus";
 const ArenaPVP = () => {
   const navigate = useNavigate();
   const { walletAddress, signer, loading } = useWallet();
-  const [battleId, setBattleId] = useState(null);
+  const [hasActiveBattle, setHasActiveBattle] = useState(false);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     const fetchBattleStatus = async () => {
-      if (!walletAddress || !signer) return;
+      if (!walletAddress || !signer) {
+        setHasActiveBattle(false);
+        setChecking(false);
+        return;
+      }
 
       try {
         setChecking(true);
-        const id = await checkBattleStatus(walletAddress, signer);
+        const battleId = await checkBattleStatus(walletAddress, signer);
 
-        if (id && Number(id) > 0) {
-          console.log("Battle ID ditemukan:", id);
-          setBattleId(id);
-        } else {
-          setBattleId(null);
-        }
+        setHasActiveBattle(battleId !== null);
       } catch (err) {
         console.error("Gagal memeriksa status battle:", err);
-        setBattleId(null);
+        setHasActiveBattle(false);
       } finally {
         setChecking(false);
       }
     };
 
     fetchBattleStatus();
+    // Jangan masukkan hasActiveBattle atau lainnya supaya tidak loop
   }, [walletAddress, signer]);
 
   const handleJoin = () => {
@@ -39,9 +39,7 @@ const ArenaPVP = () => {
   };
 
   const handleContinue = () => {
-    if (battleId) {
-      navigate("/arena-battle");
-    }
+    navigate("/arena-battle");
   };
 
   if (loading || checking) {
@@ -56,12 +54,9 @@ const ArenaPVP = () => {
     <div className="flex flex-col items-center justify-center min-h-screen text-white bg-black px-4">
       <h1 className="text-3xl font-bold mb-6">Arena PVP</h1>
 
-      {battleId ? (
+      {hasActiveBattle ? (
         <>
-          <p className="mb-4">
-            Kamu memiliki battle yang sedang berlangsung! ID:{" "}
-            <span className="font-mono text-yellow-400">{battleId}</span>
-          </p>
+          <p className="mb-4">Kamu memiliki battle yang sedang berlangsung!</p>
           <button
             onClick={handleContinue}
             className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-4 rounded"
