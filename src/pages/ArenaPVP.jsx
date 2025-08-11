@@ -11,17 +11,15 @@ const ArenaPVP = () => {
 
   useEffect(() => {
     const fetchBattleStatus = async () => {
-      if (!walletAddress || !signer) {
-        setChecking(false);
-        return;
-      }
+      if (!walletAddress || !signer) return;
 
       try {
         setChecking(true);
         const id = await checkBattleStatus(walletAddress, signer);
+
         if (id && Number(id) > 0) {
-          console.log("Battle ID ditemukan:", id.toString());
-          setBattleId(id.toString());
+          console.log("Battle ID ditemukan:", id);
+          setBattleId(id);
         } else {
           setBattleId(null);
         }
@@ -42,7 +40,7 @@ const ArenaPVP = () => {
 
   const handleContinue = () => {
     if (battleId) {
-      navigate(`/arena-battle/${battleId}`);
+      navigate("/arena-battle");
     }
   };
 
