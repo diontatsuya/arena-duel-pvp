@@ -1,10 +1,10 @@
+import React from "react";
+
 const NotFound = () => {
   return (
-    <div className="flex items-center justify-center h-[80vh] text-center">
-      <div>
-        <h1 className="text-4xl font-bold mb-4">404</h1>
-        <p className="text-xl">Halaman tidak ditemukan.</p>
-      </div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-red-900 text-white p-4">
+      <h1 className="text-4xl font-bold mb-6">404 - Halaman Tidak Ditemukan</h1>
+      <p>Maaf, halaman yang kamu cari tidak tersedia.</p>
     </div>
   );
 };
