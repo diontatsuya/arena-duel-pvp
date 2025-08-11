@@ -11,12 +11,14 @@ const ArenaPVP = () => {
 
   useEffect(() => {
     const fetchBattleStatus = async () => {
-      if (!walletAddress || !signer) return;
+      if (!walletAddress || !signer) {
+        setChecking(false);
+        return;
+      }
 
       try {
         setChecking(true);
         const id = await checkBattleStatus(walletAddress, signer);
-
         if (id && Number(id) > 0) {
           console.log("Battle ID ditemukan:", id.toString());
           setBattleId(id.toString());
