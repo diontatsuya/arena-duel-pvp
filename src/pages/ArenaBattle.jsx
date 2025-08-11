@@ -26,6 +26,8 @@ const ArenaBattle = () => {
         setIsLoading(true);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
         const battle = await contract.getMyBattle();
+
+        // Contoh cek properti isActive, sesuaikan jika struktur berbeda
         if (battle && battle.isActive) {
           setBattleData(battle);
         } else {
