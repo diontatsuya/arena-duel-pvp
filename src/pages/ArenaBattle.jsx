@@ -25,12 +25,12 @@ const ArenaBattle = () => {
       try {
         setIsLoading(true);
         const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-        const battle = await contract.getMyBattle(); // panggil fungsi getMyBattle
+        const battle = await contract.getMyBattle();
         if (battle && battle.isActive) {
           setBattleData(battle);
         } else {
           setBattleData(null);
-          navigate("/arena-pvp"); // redirect kalau tidak ada battle aktif
+          navigate("/arena-pvp");
         }
       } catch (error) {
         console.error("Gagal memuat battle aktif:", error);
@@ -68,11 +68,10 @@ const ArenaBattle = () => {
 
   const onAction = async (actionType) => {
     if (!signer) return;
-    await handleAction(actionType, signer, () => {
-      // refresh battle data setelah action
-      if (signer) {
-        contract.getMyBattle().then(setBattleData);
-      }
+    await handleAction(actionType, signer, async () => {
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+      const updatedBattle = await contract.getMyBattle();
+      setBattleData(updatedBattle);
     });
   };
 
@@ -104,11 +103,10 @@ const ArenaBattle = () => {
         signer={signer}
         walletAddress={walletAddress}
         battleData={battleData}
-        refreshBattleData={() => {
-          if (signer) {
-            const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
-            contract.getMyBattle().then(setBattleData);
-          }
+        refreshBattleData={async () => {
+          const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+          const updatedBattle = await contract.getMyBattle();
+          setBattleData(updatedBattle);
         }}
         onAction={onAction}
       />
