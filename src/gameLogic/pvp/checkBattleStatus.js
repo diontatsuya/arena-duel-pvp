@@ -3,34 +3,29 @@ import { CONTRACT_ADDRESS } from "../../utils/constants";
 import { contractABI } from "../../utils/contractABI";
 
 /**
- * Mengecek apakah wallet sedang dalam battle aktif (PvP atau PvE).
- * @param {string} walletAddress - Alamat wallet pemain.
- * @param {ethers.Signer} signer - Signer dari provider.
- * @returns {Promise<string|null>} - battleId jika aktif, null jika tidak.
+ * Cek apakah user sedang punya battle aktif via getMyBattle()
+ * @param {string} walletAddress - alamat wallet user
+ * @param {ethers.Signer} signer - signer wallet yang sudah connect
+ * @returns {Promise<string|null>} battleId string jika ada, null jika tidak ada
  */
-export async function checkBattleStatus(walletAddress, signer) {
-  if (!walletAddress || !signer) {
-    console.warn("Alamat wallet atau signer tidak tersedia.");
-    return null;
-  }
+export const checkBattleStatus = async (walletAddress, signer) => {
+  if (!signer || !walletAddress) return null;
 
   try {
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+    const battle = await contract.getMyBattle();
 
-    const battleIdBN = await contract.activeBattleId(walletAddress);
-    const battleId = battleIdBN.toString();
-
-    if (battleId === "0") return null;
-
-    const battle = await contract.getBattle(battleIdBN);
-
-    if (battle?.isActive) {
-      return battleId;
-    } else {
-      return null;
+    if (battle && battle.isActive) {
+      // Battle aktif, dapatkan battleId (misal: battle.battleId atau harus dipanggil lagi)
+      // Dari ABI, getMyBattle tidak mengembalikan battleId, jadi kita harus panggil activeBattleId(walletAddress)
+      const battleId = await contract.activeBattleId(walletAddress);
+      if (battleId && battleId.toString() !== "0") {
+        return battleId.toString();
+      }
     }
+    return null;
   } catch (error) {
-    console.error("Gagal memeriksa status battle:", error);
+    console.error("checkBattleStatus error:", error);
     return null;
   }
-}
+};
