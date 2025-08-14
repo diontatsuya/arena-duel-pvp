@@ -3,6 +3,7 @@ import { useWallet } from '../context/WalletContext.jsx';
 import { getReadContract, getWriteContract } from '../utils/contract.js';
 import HealthBar from './HealthBar.jsx';
 import ActionButtons from './ActionButtons.jsx';
+import { useNavigate } from 'react-router-dom'; // ✅ tambahkan ini
 
 export default function BattleUI({ battleId }) {
   const { signer, provider, address } = useWallet();
@@ -10,6 +11,7 @@ export default function BattleUI({ battleId }) {
   const [loading, setLoading] = useState(true);
   const [myTurn, setMyTurn] = useState(false);
   const [result, setResult] = useState(null); // 'win' | 'lose' | null
+  const navigate = useNavigate(); // ✅ inisialisasi navigator
 
   const readC = useMemo(() => provider && getReadContract(provider), [provider]);
   const writeC = useMemo(() => signer && getWriteContract(signer), [signer]);
@@ -29,19 +31,15 @@ export default function BattleUI({ battleId }) {
   const takeAction = async (action) => {
     const tx = await writeC.takeAction(action);
     await tx.wait();
-    // Will update via event listener, but also refetch for safety
     fetchBattle();
   };
 
-  // Initial & polling
   useEffect(() => {
     fetchBattle();
     const t = setInterval(fetchBattle, 5000);
     return () => clearInterval(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readC, battleId, address]);
 
-  // Events: ActionTaken + BattleEnded/BattleFinished
   useEffect(() => {
     if (!writeC) return;
     const onAction = (id) => {
@@ -61,7 +59,6 @@ export default function BattleUI({ battleId }) {
       writeC.removeListener('BattleEnded', onEnd);
       writeC.removeListener('BattleFinished', onEnd);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [writeC, battleId, address]);
 
   if (loading || !battle) return <div className="card">Loading battle #{battleId}…</div>;
@@ -86,18 +83,35 @@ export default function BattleUI({ battleId }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <span className="px-3 py-1 rounded-xl bg-slate-800 border border-slate-700">Turn: {battle.isPlayer1Turn ? 'P1' : 'P2'}</span>
+        <span className="px-3 py-1 rounded-xl bg-slate-800 border border-slate-700">
+          Turn: {battle.isPlayer1Turn ? 'P1' : 'P2'}
+        </span>
         {result && (
-          <span className={`px-3 py-1 rounded-xl ${result==='win' ? 'bg-emerald-700' : 'bg-rose-700'}`}>
+          <span
+            className={`px-3 py-1 rounded-xl ${
+              result === 'win' ? 'bg-emerald-700' : 'bg-rose-700'
+            }`}
+          >
             {result === 'win' ? 'You Win!' : 'You Lose'}
           </span>
         )}
       </div>
 
-      <ActionButtons disabled={!myTurn || result!==null || !battle.isActive} onAction={takeAction} />
+      <ActionButtons
+        disabled={!myTurn || result !== null || !battle.isActive}
+        onAction={takeAction}
+      />
 
       {!battle.isActive && (
-        <div className="text-slate-300 text-sm">Battle finished.</div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="text-slate-300 text-sm">Battle finished.</div>
+          <button
+            onClick={() => navigate('/lobby')}
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow"
+          >
+            ⬅️ Kembali ke Lobby
+          </button>
+        </div>
       )}
     </div>
   );
