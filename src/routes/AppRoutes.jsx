@@ -1,20 +1,15 @@
-import React from "react";
-import { Routes, Route } from "react-router-dom";
-import ArenaPVP from "../pages/ArenaPVP";
-import JoinPVP from "../pages/JoinPVP";
-import ArenaBattle from "../pages/ArenaBattle";
-import NotFound from "../pages/NotFound";
+import { Routes, Route } from 'react-router-dom';
+import App from '../App.jsx';
+import Home from '../pages/Home.jsx';
+import ArenaBattle from '../pages/ArenaBattle.jsx';
 
-const AppRoutes = () => {
+export default function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/" element={<ArenaPVP />} />
-      <Route path="/arena-pvp" element={<ArenaPVP />} />
-      <Route path="/join-pvp" element={<JoinPVP />} />
-      <Route path="/arena-battle" element={<ArenaBattle />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <App>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/arena-battle" element={<ArenaBattle />} />
+      </Routes>
+    </App>
   );
-};
-
-export default AppRoutes;
+}
