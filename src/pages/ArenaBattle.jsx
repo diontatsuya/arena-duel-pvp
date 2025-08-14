@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { useWallet } from '../context/WalletContext.jsx';
 import MatchmakingPanel from '../components/MatchmakingPanel.jsx';
 import BattleUI from '../components/BattleUI.jsx';
-import { getReadContract } from '../utils/contract.js';
+import { getReadContract, getWriteContract } from '../utils/contract.js';
 
 export default function ArenaBattle() {
-  const { provider, address } = useWallet();
+  const { provider, signer, address } = useWallet();
   const [inQueue, setInQueue] = useState(false);
   const [battleId, setBattleId] = useState(null);
 
@@ -22,6 +22,19 @@ export default function ArenaBattle() {
     run();
   }, [provider, address]);
 
+  const handleLeaveMatchmaking = async () => {
+    if (!signer) return;
+    try {
+      const c = getWriteContract(signer);
+      const tx = await c.leaveMatchmaking();
+      await tx.wait();
+      setInQueue(false);
+      console.log("Berhasil keluar dari matchmaking");
+    } catch (err) {
+      console.error("Gagal keluar:", err);
+    }
+  };
+
   return (
     <div className="grid gap-6">
       {!address && (
@@ -29,7 +42,22 @@ export default function ArenaBattle() {
       )}
 
       {address && battleId === null && (
-        <MatchmakingPanel inQueue={inQueue} setInQueue={setInQueue} onMatchFound={(id) => setBattleId(id)} />
+        <div className="flex flex-col gap-4">
+          <MatchmakingPanel
+            inQueue={inQueue}
+            setInQueue={setInQueue}
+            onMatchFound={(id) => setBattleId(id)}
+          />
+
+          {inQueue && (
+            <button
+              onClick={handleLeaveMatchmaking}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              Tinggalkan Matchmaking
+            </button>
+          )}
+        </div>
       )}
 
       {address && battleId !== null && (
