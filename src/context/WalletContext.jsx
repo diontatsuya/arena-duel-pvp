@@ -1,75 +1,82 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { ethers } from "ethers";
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { ethers } from 'ethers';
+import { CHAIN_ID } from '../utils/constants.js';
 
-const WalletContext = createContext();
+const WalletContext = createContext(null);
+export const useWallet = () => useContext(WalletContext);
 
-export const WalletProvider = ({ children }) => {
+export function WalletProvider({ children }) {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
-  const [walletAddress, setWalletAddress] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [address, setAddress] = useState(null);
+  const [chainId, setChainId] = useState(null);
+  const [ready, setReady] = useState(false);
 
-  // Fungsi connect wallet
-  const connectWallet = async () => {
-    try {
-      const { ethereum } = window;
-      if (!ethereum) {
-        alert("Wallet tidak ditemukan. Gunakan MetaMask atau browser DApp.");
-        return;
-      }
+  const hasMetaMask = typeof window !== 'undefined' && window.ethereum;
 
-      const prov = new ethers.providers.Web3Provider(ethereum);
-      await ethereum.request({ method: "eth_requestAccounts" });
-
-      const sign = prov.getSigner();
-      const address = await sign.getAddress();
-
-      setProvider(prov);
-      setSigner(sign);
-      setWalletAddress(address);
-    } catch (error) {
-      console.error("Gagal connect wallet:", error);
-      alert("Gagal menghubungkan wallet.");
-    } finally {
-      setLoading(false);
-    }
+  const connect = async () => {
+    if (!hasMetaMask) throw new Error('MetaMask tidak ditemukan');
+    const browserProvider = new ethers.BrowserProvider(window.ethereum);
+    await browserProvider.send('eth_requestAccounts', []);
+    const s = await browserProvider.getSigner();
+    const network = await browserProvider.getNetwork();
+    setProvider(browserProvider);
+    setSigner(s);
+    setAddress(await s.getAddress());
+    setChainId(Number(network.chainId));
   };
 
-  // Fungsi disconnect wallet
-  const disconnectWallet = () => {
-    setProvider(null);
+  const disconnect = () => {
     setSigner(null);
-    setWalletAddress(null);
+    setAddress(null);
+    // Provider tetap ada; MetaMask tidak punya programmatic disconnect.
   };
 
+  // Auto-init if already connected
   useEffect(() => {
-    connectWallet();
+    (async () => {
+      if (!hasMetaMask) { setReady(true); return; }
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      setProvider(browserProvider);
+      try {
+        const accounts = await browserProvider.listAccounts();
+        const network = await browserProvider.getNetwork();
+        setChainId(Number(network.chainId));
+        if (accounts.length) {
+          const s = await browserProvider.getSigner();
+          setSigner(s);
+          setAddress(await s.getAddress());
+        }
+      } catch {}
+      setReady(true);
+    })();
+  }, [hasMetaMask]);
 
-    if (window.ethereum) {
-      window.ethereum.on("accountsChanged", () => {
-        connectWallet();
-      });
+  // Listeners
+  useEffect(() => {
+    if (!hasMetaMask) return;
+    const onAccountsChanged = async (accs) => {
+      if (accs.length === 0) {
+        disconnect();
+      } else {
+        const s = await provider.getSigner();
+        setSigner(s);
+        setAddress(await s.getAddress());
+      }
+    };
+    const onChainChanged = async () => {
+      const net = await provider.getNetwork();
+      setChainId(Number(net.chainId));
+    };
 
-      window.ethereum.on("chainChanged", () => {
-        window.location.reload();
-      });
-    }
-  }, []);
+    window.ethereum?.on('accountsChanged', onAccountsChanged);
+    window.ethereum?.on('chainChanged', onChainChanged);
+    return () => {
+      window.ethereum?.removeListener('accountsChanged', onAccountsChanged);
+      window.ethereum?.removeListener('chainChanged', onChainChanged);
+    };
+  }, [provider, hasMetaMask]);
 
-  return (
-    <WalletContext.Provider
-      value={{
-        provider,
-        signer,
-        walletAddress,
-        loading,
-        connectWallet,
-        disconnectWallet,
-      }}
-    >
-      {children}
-    </WalletContext.Provider>
-  );
-};
-
-export const useWallet = () => useContext(WalletContext);
+  const value = useMemo(() => ({ provider, signer, address, chainId, ready, connect, disconnect }), [provider, signer, address, chainId, ready]);
+  return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
+}
