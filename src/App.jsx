@@ -7,7 +7,13 @@ export default function App({ children }) {
     <div className="min-h-screen">
       <header className="sticky top-0 z-10 backdrop-blur bg-slate-950/70 border-b border-slate-800">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="text-xl font-extrabold tracking-wide">Arena Somnia</Link>
+          <Link to="/" className="flex items-center gap-2">
+  <img 
+    src="/assets/logo.png" 
+    alt="Arena Somnia" 
+    className="h-8 w-auto"
+  />
+</Link>
           <nav className="flex gap-3 text-sm">
             <Link className={`px-3 py-1 rounded-xl ${pathname==='/' ? 'bg-slate-800' : 'hover:bg-slate-800/60'}`} to="/">Home</Link>
             <Link className={`px-3 py-1 rounded-xl ${pathname==='/arena-battle' ? 'bg-slate-800' : 'hover:bg-slate-800/60'}`} to="/arena-battle">Arena Battle</Link>
