@@ -3,7 +3,7 @@ import { useWallet } from '../context/WalletContext.jsx';
 import { getReadContract, getWriteContract } from '../utils/contract.js';
 import HealthBar from './HealthBar.jsx';
 import ActionButtons from './ActionButtons.jsx';
-import { useNavigate } from 'react-router-dom'; // ✅ tambahkan ini
+import { useNavigate } from 'react-router-dom';
 
 export default function BattleUI({ battleId }) {
   const { signer, provider, address } = useWallet();
@@ -11,7 +11,7 @@ export default function BattleUI({ battleId }) {
   const [loading, setLoading] = useState(true);
   const [myTurn, setMyTurn] = useState(false);
   const [result, setResult] = useState(null); // 'win' | 'lose' | null
-  const navigate = useNavigate(); // ✅ inisialisasi navigator
+  const navigate = useNavigate();
 
   const readC = useMemo(() => provider && getReadContract(provider), [provider]);
   const writeC = useMemo(() => signer && getWriteContract(signer), [signer]);
